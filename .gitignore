@@ -36,4 +36,4 @@ coverage/
 # Temporary files
 *.tmp
 *.swp
-
+next-env.d.ts
