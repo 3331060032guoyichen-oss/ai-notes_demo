@@ -77,7 +77,13 @@ KnowledgeRelation {
 }
 ```
 
-Relation 存储在 `data/relations.json`。`related` 是对称关系，服务端以无序 ID 对去重，要求两端 Knowledge 存在并拒绝自连接。Relation 只有用户接受 AI 建议或主动提交后才持久化；Backlink 和 Graph 仍属于后续 Step。
+Relation 存储在 `data/relations.json`。`related` 是对称关系，服务端以无序 ID 对去重，要求两端 Knowledge 存在并拒绝自连接。Relation 只有用户接受 AI 建议或主动提交后才持久化；Graph 仍属于后续 Step。
+
+## Phase 1 Backlink query
+
+Step 5 已实现 Backlink 动态查询：`GET /api/knowledge/:id/backlinks` 根据当前 Relation 反查相关 Knowledge。Backlink 不单独存储，因此新增、删除或修改 Relation 后，查询结果直接反映最新状态。
+
+Graph 仍只是后续的 Relation 展示层，尚未实现。
 
 ## Long-term Raw 与标签
 

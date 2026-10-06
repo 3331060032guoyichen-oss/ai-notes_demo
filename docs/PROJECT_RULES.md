@@ -37,11 +37,13 @@ Step 3（Draft Confirm + Knowledge Persistence）已 PASS。用户可以在页�
 
 Step 4（Knowledge Relation）已 PASS。AI 可以提出已有 Knowledge 的关联建议，用户勾选后才会保存独立的 `related` Relation；服务端校验两端 ID、拒绝自连接，并对正反向关系去重。
 
+Step 5（Backlink）已 PASS。Backlink 由当前 KnowledgeRelation 动态查询，不单独保存冗余表或字段；Relation 删除后查询结果会同步变化。
+
 ### Not implemented in the current Phase 1 checkout
 
 以下功能仍属于后续范围，当前不得假定已经存在：
 
-- Backlink 和 Graph
+- Graph
 - OCR、多模态输入、Agent、RAG、Embedding 和向量数据库
 
 ## Long-term MVP scope

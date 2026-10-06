@@ -7,8 +7,9 @@
 - Step 2 status: PASS
 - Step 3 status: PASS
 - Step 4 status: PASS
-- Current Step: Step 4 — Knowledge Relation
-- Next Step: Step 5 — Backlink
+- Step 5 status: PASS
+- Current Step: Step 5 — Backlink
+- Next Step: Step 6 — Graph
 - DeepSeek is connected only on the server.
 
 Step 1 is merged into the `develop-guozechen` integration branch. The project is currently being built on `develop-guozechen`; `main` has not been modified.
@@ -32,6 +33,8 @@ Step 1 is merged into the `develop-guozechen` integration branch. The project is
 - `lib/relation-storage.ts`
 - `app/api/relations/route.ts`
 - `app/api/knowledge/[id]/relations/route.ts`
+- `app/api/knowledge/[id]/backlinks/route.ts`
+- `app/api/relations/[id]/route.ts`
 - Draft confirmation UI in `app/page.tsx`
 - Runtime storage: `data/raw.json`
 - Runtime storage: `data/knowledge.json`
@@ -51,9 +54,11 @@ Step 3 verification covered the real page flow from Raw to Draft, editing Draft,
 
 Step 4 verification covered real AI relation suggestions, user selection in the page, accepted relation persistence, unknown Knowledge rejection, self-relation rejection, reverse-direction deduplication, and dynamic relation reads for both endpoints.
 
+Step 5 verification covered dynamic Backlink reads, empty results, unknown Knowledge handling, relation deletion followed by a changed Backlink result, and relation/Backlink persistence after restarting the server.
+
 ## Not implemented yet
 
-- Backlink and Graph
+- Graph
 - OCR, multimodal input, Agent, RAG, Embedding, and vector storage
 
-These remain future work. Do not begin Step 5 or extend the UI until the next Step is explicitly started.
+These remain future work. Do not begin Step 6 or extend the UI until the next Step is explicitly started.

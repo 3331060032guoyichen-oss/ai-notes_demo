@@ -103,3 +103,15 @@ export async function createRelation(
     return { relation, created: true };
   });
 }
+
+export async function deleteRelation(id: string): Promise<boolean> {
+  return withWriteLock(async () => {
+    const relations = await readAll();
+    const nextRelations = relations.filter((relation) => relation.id !== id);
+
+    if (nextRelations.length === relations.length) return false;
+
+    await persist(nextRelations);
+    return true;
+  });
+}
