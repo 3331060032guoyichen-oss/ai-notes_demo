@@ -17,6 +17,9 @@ dist/
 .env.*.local
 !.env.example
 
+# Local demo data
+data/raw.json
+
 # Logs
 *.log
 logs/
@@ -36,4 +39,3 @@ coverage/
 # Temporary files
 *.tmp
 *.swp
-
