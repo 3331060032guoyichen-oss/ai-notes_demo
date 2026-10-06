@@ -1,6 +1,6 @@
 # Project Rules
 
-## 产品定位
+## Long-term product direction
 
 AI Notes 是面向大学生的生长式 AI 知识系统。它帮助用户将手写笔记、电子笔记和题目逐渐转化为结构化知识。
 
@@ -19,11 +19,28 @@ AI Notes 是面向大学生的生长式 AI 知识系统。它帮助用户将手�
 
 涉及知识结构变化的操作遵循“AI 提议 → 用户确认 → 写入知识网络”。原始数据不得被 AI 直接覆盖。
 
-## Raw / Wiki
+## Long-term Raw / Wiki model
 
 Raw 保存原始图片、文本和上传文件；Wiki 保存整理后的 Note、Question、Concept 与 Card。Raw 必须保留并可追溯。
 
-## MVP 范围
+## Phase 1 scope
+
+Phase 1 先建立一条可验证的持久化闭环：用户输入文本，Raw 被保存并可读取，应用重启后仍可恢复。后续 Step 才会加入服务端 AI Draft、用户确认后的 Knowledge，以及可延后的 Relation、Backlink 和 Graph 展示。
+
+### Completed Step
+
+Step 1（Raw + Storage）已 PASS。当前实现支持文本 Raw 的创建与读取、输入校验、连续写入、文件缺失恢复、损坏存储失败后的继续写入和重启持久化。Raw 使用 `data/raw.json`，该运行时文件不进入 Git。
+
+### Not implemented in the current Phase 1 checkout
+
+以下功能仍属于后续范围，当前不得假定已经存在：
+
+- DeepSeek 或其他模型调用
+- `/api/organize` 与 `OrganizeDraft`
+- Knowledge、KnowledgeRelation、Backlink 和 Graph
+- OCR、多模态输入、Agent、RAG、Embedding 和向量数据库
+
+## Long-term MVP scope
 
 校赛 MVP 规划包含 Wiki、WikiLink、Backlink、四类节点、图片转 Markdown、AI 整理与提议、用户确认、题目分类、知识关联和知识卡片。本次初始化不实现这些业务功能。
 

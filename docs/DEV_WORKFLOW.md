@@ -8,7 +8,15 @@
 
 - `main`：稳定版本
 - `develop`：日常集成
-- `feature/ui`、`feature/ai`、`feature/knowledge`：按任务创建
+- `feature/*`：按任务创建，例如 `feature/raw-storage`、`feature/ui`、`feature/ai` 和 `feature/knowledge`
+
+当前 Step 1 位于本地 `feature/raw-storage`，`develop` 是集成目标，`main` 保持稳定且未修改。只有在验证完成并得到后续集成指令后，才把 feature 分支合并到 `develop`。
+
+## Step gate
+
+每次只执行一个 Step。当前 Step 必须完成实现、适用的真实命令或页面验证，并明确报告为 `PASS` 后，才能进入下一 Step。未执行的检查必须报告为 `NOT VERIFIED`，不得用推断替代实际证据。
+
+Step 1 的验收范围是 Raw 创建、读取、输入校验、连续写入、存储异常恢复和重启持久化。Step 2（DeepSeek 与 Draft）在 Step 1 完成后仍需单独开始和验收，不得在 Step 1 中提前接入。
 
 ## Commit 规范
 

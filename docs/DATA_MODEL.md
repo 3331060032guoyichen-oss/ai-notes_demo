@@ -1,6 +1,8 @@
 # Data Model
 
-## 核心节点
+本文区分长期产品模型与当前 Phase 1 的实际持久化模型。长期模型不能被视为当前已经实现的 schema。
+
+## Long-term product model
 
 系统核心节点为 `Note`、`Question`、`Concept`、`Card`。每个节点至少包含 `id`、`type`、`title`、`content`、`tags`、`createdAt` 与 `updatedAt`。
 
@@ -19,6 +21,22 @@
 
 AI 对知识关系的创建或修改先生成 Proposal，状态为 `proposed`、`accepted` 或 `rejected`。只有用户接受后才进入正式知识图谱。
 
-## Raw 与标签
+## Phase 1 actual model
 
-Raw 保存 `rawId`、文件名、类型、原始路径和时间；Raw 不得被 Wiki 覆盖。标签是属性，默认不是图谱节点。
+当前已完成的 Step 1 只持久化文本 Raw：
+
+```text
+Raw {
+  id: string
+  text: string
+  createdAt: string
+}
+```
+
+Raw 存储在本地运行时文件 `data/raw.json`，由 `lib/raw-storage.ts` 读写，并通过 `app/api/raw/route.ts` 提供创建和列表读取。Raw 创建成功后不会被 AI 或其他逻辑覆盖。
+
+当前 Phase 1 尚未实现 `OrganizeDraft`、Knowledge、KnowledgeRelation、Backlink 或 Graph；这些模型属于后续 Step，不能当作现有数据库表或已持久化实体。
+
+## Long-term Raw 与标签
+
+长期产品中的 Raw 可以扩展为图片、文本和上传文件，并与整理后的知识建立追溯关系。当前实现仅接受文本，因此不能按长期文件字段推断当前 Raw schema。标签是属性，默认不是图谱节点。
