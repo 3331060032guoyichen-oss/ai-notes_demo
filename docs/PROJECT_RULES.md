@@ -39,11 +39,14 @@ Step 4（Knowledge Relation）已 PASS。AI 可以提出已有 Knowledge 的关�
 
 Step 5（Backlink）已 PASS。Backlink 由当前 KnowledgeRelation 动态查询，不单独保存冗余表或字段；Relation 删除后查询结果会同步变化。
 
+Step 6（Graph View）已 PASS。Graph 从当前 Knowledge 和 KnowledgeRelation 动态生成节点与边，节点可点击进入 Knowledge 详情；Graph 只是展示层，故障不会改变 Raw、Knowledge 或 Relation 的主流程。
+
+Phase 1 全链路已完成真实验收：Raw → DeepSeek Draft → 用户编辑确认 → Knowledge → 用户接受 Relation → Backlink → Graph → Knowledge 详情，并验证了服务重启后的持久化。
+
 ### Not implemented in the current Phase 1 checkout
 
 以下功能仍属于后续范围，当前不得假定已经存在：
 
-- Graph
 - OCR、多模态输入、Agent、RAG、Embedding 和向量数据库
 
 ## Long-term MVP scope
@@ -53,3 +56,4 @@ Step 5（Backlink）已 PASS。Backlink 由当前 KnowledgeRelation 动态查询
 ## UI 原则
 
 界面应安静、自然、克制、内容优先，避免紫蓝渐变、霓虹、玻璃拟态和无意义特效。详细规范见 `DESIGN_SYSTEM.md`。
+

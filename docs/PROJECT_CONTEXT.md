@@ -8,8 +8,10 @@
 - Step 3 status: PASS
 - Step 4 status: PASS
 - Step 5 status: PASS
-- Current Step: Step 5 — Backlink
-- Next Step: Step 6 — Graph
+- Step 6 status: PASS
+- Current Step: Step 6 — Graph
+- Phase 1 status: PASS
+- Next Step: Future phase planning
 - DeepSeek is connected only on the server.
 
 Step 1 is merged into the `develop-guozechen` integration branch. The project is currently being built on `develop-guozechen`; `main` has not been modified.
@@ -35,6 +37,8 @@ Step 1 is merged into the `develop-guozechen` integration branch. The project is
 - `app/api/knowledge/[id]/relations/route.ts`
 - `app/api/knowledge/[id]/backlinks/route.ts`
 - `app/api/relations/[id]/route.ts`
+- `types/graph.ts`
+- `app/api/graph/route.ts`
 - Draft confirmation UI in `app/page.tsx`
 - Runtime storage: `data/raw.json`
 - Runtime storage: `data/knowledge.json`
@@ -56,9 +60,13 @@ Step 4 verification covered real AI relation suggestions, user selection in the 
 
 Step 5 verification covered dynamic Backlink reads, empty results, unknown Knowledge handling, relation deletion followed by a changed Backlink result, and relation/Backlink persistence after restarting the server.
 
+Step 6 verification covered dynamic Graph nodes and edges, a readable node list, clicking a node to load Knowledge details, and keeping Graph reads separate from the Raw/Draft/Knowledge write flow. The view uses the local Brandkit token style and no graph dependency.
+
+Final Phase 1 verification covered one fresh end-to-end chain: Raw creation, real DeepSeek Draft generation, user-edited confirmation, Knowledge persistence, accepted Relation, dynamic Backlink, Graph node/edge generation, Knowledge detail loading, and restart persistence for Raw, Knowledge, and Relation.
+
 ## Not implemented yet
 
-- Graph
 - OCR, multimodal input, Agent, RAG, Embedding, and vector storage
 
-These remain future work. Do not begin Step 6 or extend the UI until the next Step is explicitly started.
+These remain future work outside the completed Phase 1 scope.
+

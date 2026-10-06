@@ -83,8 +83,13 @@ Relation 存储在 `data/relations.json`。`related` 是对称关系，服务端
 
 Step 5 已实现 Backlink 动态查询：`GET /api/knowledge/:id/backlinks` 根据当前 Relation 反查相关 Knowledge。Backlink 不单独存储，因此新增、删除或修改 Relation 后，查询结果直接反映最新状态。
 
-Graph 仍只是后续的 Relation 展示层，尚未实现。
+Graph 只是 Relation 的展示层，不是新的数据源。
+
+## Phase 1 Graph view
+
+Step 6 已实现 `GET /api/graph`，实时从 Knowledge 和 KnowledgeRelation 生成 `nodes` 与 `edges`。Graph 不创建独立数据源，也不写入 `graph.json`；节点详情仍从 Knowledge 查询。
 
 ## Long-term Raw 与标签
 
 长期产品中的 Raw 可以扩展为图片、文本和上传文件，并与整理后的知识建立追溯关系。当前实现仅接受文本，因此不能按长期文件字段推断当前 Raw schema。标签是属性，默认不是图谱节点。
+

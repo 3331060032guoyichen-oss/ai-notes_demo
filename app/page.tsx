@@ -5,11 +5,14 @@ import { useEffect, useState } from "react";
 
 import type { Knowledge } from "../types/knowledge";
 import type { OrganizeDraft } from "../types/organize";
+import type { GraphEdge, GraphNode } from "../types/graph";
 import type { Raw } from "../types/raw";
 
 const MAX_RAW_LENGTH = 10_000;
 
 type KnowledgeListPayload = { knowledges?: Knowledge[] };
+type GraphPayload = { nodes?: GraphNode[]; edges?: GraphEdge[] };
+type GraphData = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 function linesToArray(value: string) {
   return value
@@ -22,6 +25,10 @@ export default function Home() {
   const [text, setText] = useState("");
   const [raws, setRaws] = useState<Raw[]>([]);
   const [knowledges, setKnowledges] = useState<Knowledge[]>([]);
+  const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
+  const [graphError, setGraphError] = useState("");
+  const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
+  const [graphRefresh, setGraphRefresh] = useState(0);
   const [draft, setDraft] = useState<OrganizeDraft | null>(null);
   const [draftRawId, setDraftRawId] = useState<string | null>(null);
   const [selectedRelationIds, setSelectedRelationIds] = useState<string[]>([]);
@@ -62,6 +69,30 @@ export default function Home() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadGraph() {
+      try {
+        const response = await fetch("/api/graph");
+        const payload = (await response.json()) as GraphPayload;
+
+        if (!response.ok) throw new Error("Graph 读取失败");
+        if (active) {
+          setGraph({ nodes: payload.nodes ?? [], edges: payload.edges ?? [] });
+          setGraphError("");
+        }
+      } catch {
+        if (active) setGraphError("知识网络暂时无法读取，主流程仍可继续。");
+      }
+    }
+
+    void loadGraph();
+    return () => {
+      active = false;
+    };
+  }, [graphRefresh]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -195,6 +226,7 @@ export default function Home() {
       setDraft(null);
       setDraftRawId(null);
       setSelectedRelationIds([]);
+      setGraphRefresh((current) => current + 1);
     } catch (confirmError) {
       setError(
         confirmError instanceof Error
@@ -203,6 +235,16 @@ export default function Home() {
       );
     } finally {
       setIsConfirming(false);
+    }
+  }
+
+  async function handleGraphNodeClick(nodeId: string) {
+    try {
+      const response = await fetch(`/api/knowledge/${nodeId}`);
+      const payload = (await response.json()) as { knowledge?: Knowledge };
+      if (response.ok && payload.knowledge) setSelectedKnowledge(payload.knowledge);
+    } catch {
+      setGraphError("暂时无法读取该 Knowledge 详情。");
     }
   }
 
@@ -404,7 +446,69 @@ export default function Home() {
             </ul>
           )}
         </section>
+
+        <section className="brand-card graph-panel" aria-labelledby="graph-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">DYNAMIC VIEW</p>
+              <h2 id="graph-title">知识网络</h2>
+            </div>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setGraphRefresh((current) => current + 1)}
+            >
+              刷新网络
+            </button>
+          </div>
+          {graphError ? <p className="error-message">{graphError}</p> : null}
+          {graph.nodes.length === 0 ? (
+            <p className="empty-state">确认 Knowledge 后，知识网络会显示节点。</p>
+          ) : (
+            <div className="graph-layout">
+              <div>
+                <p className="graph-label">Knowledge 节点</p>
+                <div className="graph-nodes">
+                  {graph.nodes.map((node) => (
+                    <button
+                      className="graph-node"
+                      type="button"
+                      key={node.id}
+                      onClick={() => void handleGraphNodeClick(node.id)}
+                    >
+                      {node.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="graph-label">Relation 边</p>
+                {graph.edges.length === 0 ? (
+                  <p className="empty-state">当前没有 related 关系。</p>
+                ) : (
+                  <ul className="graph-edges">
+                    {graph.edges.map((edge) => (
+                      <li key={edge.id}>
+                        <span>{edge.source.slice(-8)} ↔ {edge.target.slice(-8)}</span>
+                        <small>{edge.reason}</small>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+          {selectedKnowledge ? (
+            <article className="knowledge-detail" aria-live="polite">
+              <p className="graph-label">Knowledge 详情</p>
+              <h3>{selectedKnowledge.title}</h3>
+              <p>{selectedKnowledge.summary}</p>
+              <p className="detail-content">{selectedKnowledge.content}</p>
+            </article>
+          ) : null}
+        </section>
       </section>
     </main>
   );
 }
+
