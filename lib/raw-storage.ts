@@ -9,7 +9,7 @@ const RAW_FILE = path.join(DATA_DIRECTORY, "raw.json");
 
 let writeChain: Promise<void> = Promise.resolve();
 
-function withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+async function withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
   const previous = writeChain;
   let release!: () => void;
 
@@ -17,13 +17,13 @@ function withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
     release = resolve;
   });
 
-  return previous.then(async () => {
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
-  });
+  await previous.catch(() => undefined);
+
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
 }
 
 function isRaw(value: unknown): value is Raw {
