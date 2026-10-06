@@ -2,15 +2,15 @@
 
 ## 4 人协作
 
-按 UI、AI、Knowledge、Product / Integration 划分模块边界。成员主要在自己的 feature 分支开发，完成稳定功能后合并到 `develop`，最终由 `develop` 合并到 `main`。
+按 UI、AI、Knowledge、Product / Integration 划分模块边界。成员主要在自己的 feature 分支开发，完成稳定功能后合并到集成分支，最终由集成分支合并到 `main`。
 
 ## Git 分支
 
 - `main`：稳定版本
-- `develop`：日常集成
+- `develop-guozechen`：当前仓库的日常集成分支
 - `feature/*`：按任务创建，例如 `feature/raw-storage`、`feature/ui`、`feature/ai` 和 `feature/knowledge`
 
-当前 Step 1 位于本地 `feature/raw-storage`，`develop` 是集成目标，`main` 保持稳定且未修改。只有在验证完成并得到后续集成指令后，才把 feature 分支合并到 `develop`。
+当前仓库没有远程 `develop` 分支；本阶段全部 Step 已在 `develop-guozechen` 完成并验证，`main` 保持稳定且未修改。`feature/raw-storage` 是 Step 1 的历史开发分支。后续新增功能仍应先在对应 feature 分支验证，再合并到 `develop-guozechen`。
 
 ## Step gate
 
