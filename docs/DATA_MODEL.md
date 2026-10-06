@@ -60,7 +60,24 @@ Knowledge {
 }
 ```
 
-Knowledge 存储在 `data/knowledge.json`，必须引用真实 Raw。Draft 未确认前不会创建 Knowledge；同一个 `rawId` 重复确认会返回已有 Knowledge，不会重复写入。KnowledgeRelation、Backlink 和 Graph 仍属于后续 Step。
+Knowledge 存储在 `data/knowledge.json`，必须引用真实 Raw。Draft 未确认前不会创建 Knowledge；同一个 `rawId` 重复确认会返回已有 Knowledge，不会重复写入。
+
+## Phase 1 relation model
+
+Step 4 已实现独立的 `KnowledgeRelation`：
+
+```text
+KnowledgeRelation {
+  id: string
+  sourceId: string
+  targetId: string
+  type: "related"
+  reason: string
+  createdAt: string
+}
+```
+
+Relation 存储在 `data/relations.json`。`related` 是对称关系，服务端以无序 ID 对去重，要求两端 Knowledge 存在并拒绝自连接。Relation 只有用户接受 AI 建议或主动提交后才持久化；Backlink 和 Graph 仍属于后续 Step。
 
 ## Long-term Raw 与标签
 

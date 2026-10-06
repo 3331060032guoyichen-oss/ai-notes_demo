@@ -16,7 +16,7 @@
 
 每次只执行一个 Step。当前 Step 必须完成实现、适用的真实命令或页面验证，并明确报告为 `PASS` 后，才能进入下一 Step。未执行的检查必须报告为 `NOT VERIFIED`，不得用推断替代实际证据。
 
-Step 1 的验收范围是 Raw 创建、读取、输入校验、连续写入、存储异常恢复和重启持久化；该 Step 已 PASS。Step 2（DeepSeek 与 Draft）已完成真实调用、结构化校验、错误路径和 Raw 保留验证；该 Step 已 PASS。Step 3（Draft 确认与 Knowledge 持久化）也已完成页面操作、重复确认、重启恢复和 API 验证；下一步是单独实现并验收 Step 4（Knowledge Relation）。
+Step 1 的验收范围是 Raw 创建、读取、输入校验、连续写入、存储异常恢复和重启持久化；该 Step 已 PASS。Step 2（DeepSeek 与 Draft）已完成真实调用、结构化校验、错误路径和 Raw 保留验证；该 Step 已 PASS。Step 3（Draft 确认与 Knowledge 持久化）已完成页面操作、重复确认、重启恢复和 API 验证；该 Step 已 PASS。Step 4（Knowledge Relation）已完成 AI 建议、用户选择、ID 校验、对称去重和页面/API 验证；下一步是单独实现并验收 Step 5（Backlink）。
 
 ## Commit 规范
 

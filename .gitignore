@@ -20,6 +20,7 @@ dist/
 # Local demo data
 data/raw.json
 data/knowledge.json
+data/relations.json
 
 # Logs
 *.log

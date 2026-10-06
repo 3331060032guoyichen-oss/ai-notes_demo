@@ -24,6 +24,7 @@ export default function Home() {
   const [knowledges, setKnowledges] = useState<Knowledge[]>([]);
   const [draft, setDraft] = useState<OrganizeDraft | null>(null);
   const [draftRawId, setDraftRawId] = useState<string | null>(null);
+  const [selectedRelationIds, setSelectedRelationIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [organizingRawId, setOrganizingRawId] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function Home() {
     setNotice("");
     setDraft(null);
     setDraftRawId(rawId);
+    setSelectedRelationIds([]);
     setOrganizingRawId(rawId);
 
     try {
@@ -162,6 +164,28 @@ export default function Home() {
         throw new Error(payload.error?.message ?? "确认保存失败");
       }
 
+      for (const suggestion of draft.relatedKnowledge) {
+        if (!selectedRelationIds.includes(suggestion.knowledgeId)) continue;
+
+        const relationResponse = await fetch("/api/relations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceId: payload.knowledge.id,
+            targetId: suggestion.knowledgeId,
+            type: "related",
+            reason: suggestion.reason,
+          }),
+        });
+        const relationPayload = (await relationResponse.json()) as {
+          error?: { message?: string };
+        };
+
+        if (!relationResponse.ok) {
+          throw new Error(relationPayload.error?.message ?? "关系保存失败");
+        }
+      }
+
       if (payload.created) {
         setKnowledges((current) => [payload.knowledge!, ...current]);
         setNotice("已确认并保存为 Knowledge。");
@@ -170,6 +194,7 @@ export default function Home() {
       }
       setDraft(null);
       setDraftRawId(null);
+      setSelectedRelationIds([]);
     } catch (confirmError) {
       setError(
         confirmError instanceof Error
@@ -281,9 +306,34 @@ export default function Home() {
               }
               rows={3}
             />
-            <p className="draft-note">
-              当前没有可确认的 Knowledge 关联建议。Relation 会在后续 Step 单独处理。
-            </p>
+            {draft.relatedKnowledge.length > 0 ? (
+              <fieldset className="relation-suggestions">
+                <legend>相关 Knowledge 建议（可选）</legend>
+                {draft.relatedKnowledge.map((suggestion) => (
+                  <label className="relation-option" key={suggestion.knowledgeId}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRelationIds.includes(suggestion.knowledgeId)}
+                      onChange={(event) => {
+                        setSelectedRelationIds((current) =>
+                          event.target.checked
+                            ? [...current, suggestion.knowledgeId]
+                            : current.filter((id) => id !== suggestion.knowledgeId),
+                        );
+                      }}
+                    />
+                    <span>
+                      <strong>{suggestion.knowledgeId}</strong>
+                      <small>{suggestion.reason}</small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            ) : (
+              <p className="draft-note">
+                当前没有可确认的 Knowledge 关联建议。Relation 会在后续整理中单独处理。
+              </p>
+            )}
             <div className="draft-actions">
               <button type="button" onClick={handleConfirm} disabled={isConfirming}>
                 {isConfirming ? "确认中…" : "确认并保存 Knowledge"}
@@ -294,6 +344,7 @@ export default function Home() {
                 onClick={() => {
                   setDraft(null);
                   setDraftRawId(null);
+                  setSelectedRelationIds([]);
                   setNotice("Draft 已取消，尚未创建 Knowledge。");
                 }}
                 disabled={isConfirming}

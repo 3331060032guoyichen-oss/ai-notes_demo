@@ -35,11 +35,13 @@ Step 2（DeepSeek + Structured Draft）已 PASS。服务端通过 `/api/organize
 
 Step 3（Draft Confirm + Knowledge Persistence）已 PASS。用户可以在页面查看并编辑 Draft，只有确认后才会创建 Knowledge。Knowledge 独立持久化并引用真实 `rawId`，重复确认不会创建重复记录；Draft 取消不会写入 Knowledge。页面视觉使用现有 Brandkit token 风格，不改变 Raw 主流程。
 
+Step 4（Knowledge Relation）已 PASS。AI 可以提出已有 Knowledge 的关联建议，用户勾选后才会保存独立的 `related` Relation；服务端校验两端 ID、拒绝自连接，并对正反向关系去重。
+
 ### Not implemented in the current Phase 1 checkout
 
 以下功能仍属于后续范围，当前不得假定已经存在：
 
-- Knowledge、KnowledgeRelation、Backlink 和 Graph
+- Backlink 和 Graph
 - OCR、多模态输入、Agent、RAG、Embedding 和向量数据库
 
 ## Long-term MVP scope

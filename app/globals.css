@@ -226,6 +226,45 @@ button:hover:not(:disabled) {
   line-height: 1.6;
 }
 
+.relation-suggestions {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin: 18px 0 0;
+  border: 1px solid var(--brand-line);
+  border-radius: 12px;
+}
+
+.relation-suggestions legend {
+  padding: 0 6px;
+  color: var(--brand-muted);
+  font-size: 13px;
+}
+
+.relation-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--brand-paper);
+}
+
+.relation-option input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.relation-option span {
+  display: grid;
+  gap: 4px;
+}
+
+.relation-option small {
+  color: var(--brand-muted);
+  line-height: 1.5;
+}
+
 .draft-actions {
   display: flex;
   flex-wrap: wrap;

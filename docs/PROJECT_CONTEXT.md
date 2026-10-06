@@ -3,11 +3,12 @@
 ## Current status
 
 - Phase: Phase 1
-- Current Step: Step 3 — Draft confirmation + Knowledge persistence
 - Step 1 status: PASS
 - Step 2 status: PASS
 - Step 3 status: PASS
-- Next Step: Step 4 — Knowledge Relation
+- Step 4 status: PASS
+- Current Step: Step 4 — Knowledge Relation
+- Next Step: Step 5 — Backlink
 - DeepSeek is connected only on the server.
 
 Step 1 is merged into the `develop-guozechen` integration branch. The project is currently being built on `develop-guozechen`; `main` has not been modified.
@@ -27,9 +28,14 @@ Step 1 is merged into the `develop-guozechen` integration branch. The project is
 - `lib/knowledge-storage.ts`
 - `app/api/knowledge/route.ts`
 - `app/api/knowledge/[id]/route.ts`
+- `types/relation.ts`
+- `lib/relation-storage.ts`
+- `app/api/relations/route.ts`
+- `app/api/knowledge/[id]/relations/route.ts`
 - Draft confirmation UI in `app/page.tsx`
 - Runtime storage: `data/raw.json`
 - Runtime storage: `data/knowledge.json`
+- Runtime storage: `data/relations.json`
 
 The current UI accepts text, saves Raw data, and displays saved records. `POST /api/raw` validates the request and persists Raw data; `GET /api/raw` reads the saved records. `data/raw.json` is ignored by Git and is not a source-of-truth file in the repository.
 
@@ -43,9 +49,11 @@ Step 2 verification covered a real DeepSeek Draft response, empty and unknown `r
 
 Step 3 verification covered the real page flow from Raw to Draft, editing Draft, cancelling without creating Knowledge, confirming and persisting Knowledge, list/detail reads, duplicate confirmation protection, Raw traceability, and restart persistence. The page uses the local Brandkit token style without adding a UI dependency.
 
+Step 4 verification covered real AI relation suggestions, user selection in the page, accepted relation persistence, unknown Knowledge rejection, self-relation rejection, reverse-direction deduplication, and dynamic relation reads for both endpoints.
+
 ## Not implemented yet
 
-- KnowledgeRelation, Backlink, and Graph
+- Backlink and Graph
 - OCR, multimodal input, Agent, RAG, Embedding, and vector storage
 
-These remain future work. Do not begin Step 4 or extend the UI until the next Step is explicitly started.
+These remain future work. Do not begin Step 5 or extend the UI until the next Step is explicitly started.

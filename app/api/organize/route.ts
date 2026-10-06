@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createOrganizeDraft, DeepSeekError } from "../../../lib/deepseek";
+import { listKnowledge } from "../../../lib/knowledge-storage";
 import { getRaw } from "../../../lib/raw-storage";
 
 export const runtime = "nodejs";
@@ -49,9 +50,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    const existingKnowledge = (await listKnowledge())
+      .filter((knowledge) => knowledge.rawId !== raw.id)
+      .slice(0, 20)
+      .map((knowledge) => ({
+        id: knowledge.id,
+        title: knowledge.title,
+        summary: knowledge.summary.slice(0, 300),
+      }));
+
     const draft = await createOrganizeDraft({
       rawText: raw.text,
-      existingKnowledge: [],
+      existingKnowledge,
     });
 
     return NextResponse.json({ draft });
