@@ -33,6 +33,8 @@ Step 1（Raw + Storage）已 PASS。当前实现支持文本 Raw 的创建与读
 
 Step 2（DeepSeek + Structured Draft）已 PASS。服务端通过 `/api/organize` 按 `rawId` 读取 Raw，调用 DeepSeek，解析并校验结构化 `OrganizeDraft`，并在上游失败时保留 Raw。API Key 只从服务端环境变量读取。
 
+Step 3（Draft Confirm + Knowledge Persistence）已 PASS。用户可以在页面查看并编辑 Draft，只有确认后才会创建 Knowledge。Knowledge 独立持久化并引用真实 `rawId`，重复确认不会创建重复记录；Draft 取消不会写入 Knowledge。页面视觉使用现有 Brandkit token 风格，不改变 Raw 主流程。
+
 ### Not implemented in the current Phase 1 checkout
 
 以下功能仍属于后续范围，当前不得假定已经存在：

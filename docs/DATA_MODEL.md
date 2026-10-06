@@ -41,7 +41,26 @@ Step 2 已实现 `OrganizeDraft` 作为服务端返回的临时结构。它由 `
 
 `relatedKnowledge` 只能保留服务端确认存在的 Knowledge ID；当前系统尚无 Knowledge，因此该数组返回为空。DeepSeek 失败或返回非法结构时，Raw 保持不变。
 
-当前 Phase 1 尚未实现 Knowledge、KnowledgeRelation、Backlink 或 Graph；这些模型属于后续 Step，不能当作现有数据库表或已持久化实体。
+## Phase 1 Knowledge model
+
+Step 3 已实现并持久化：
+
+```text
+Knowledge {
+  id: string
+  rawId: string
+  title: string
+  summary: string
+  content: string
+  keyPoints: string[]
+  concepts: string[]
+  keywords: string[]
+  createdAt: string
+  updatedAt: string
+}
+```
+
+Knowledge 存储在 `data/knowledge.json`，必须引用真实 Raw。Draft 未确认前不会创建 Knowledge；同一个 `rawId` 重复确认会返回已有 Knowledge，不会重复写入。KnowledgeRelation、Backlink 和 Graph 仍属于后续 Step。
 
 ## Long-term Raw 与标签
 

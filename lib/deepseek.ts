@@ -49,7 +49,7 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function isOrganizeDraft(value: unknown): value is OrganizeDraft {
+export function isOrganizeDraft(value: unknown): value is OrganizeDraft {
   if (!isRecord(value)) return false;
 
   if (
