@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { Raw } from "../types/raw";
@@ -55,14 +55,7 @@ async function readAll(): Promise<Raw[]> {
 
 async function persist(raws: Raw[]): Promise<void> {
   await mkdir(DATA_DIRECTORY, { recursive: true });
-  const temporaryFile = path.join(DATA_DIRECTORY, `.raw-${randomUUID()}.tmp`);
-
-  await writeFile(
-    temporaryFile,
-    JSON.stringify(raws, null, 2) + "\n",
-    "utf8",
-  );
-  await rename(temporaryFile, RAW_FILE);
+  await writeFile(RAW_FILE, JSON.stringify(raws, null, 2) + "\n", "utf8");
 }
 
 export async function listRaw(): Promise<Raw[]> {
