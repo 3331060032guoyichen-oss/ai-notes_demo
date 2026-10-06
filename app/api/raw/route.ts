@@ -25,13 +25,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: RawRequestBody;
+  let parsed: unknown;
 
   try {
-    body = (await request.json()) as RawRequestBody;
+    parsed = await request.json();
   } catch {
     return errorResponse("请求内容必须是有效的 JSON。", 400, "INVALID_JSON");
   }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return errorResponse("请求内容必须是 JSON 对象。", 400, "INVALID_BODY");
+  }
+
+  const body = parsed as RawRequestBody;
 
   if (typeof body.text !== "string") {
     return errorResponse("请提供 text 字段。", 400, "TEXT_REQUIRED");
@@ -50,7 +56,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json({ raw: await createRaw(body.text) }, { status: 201 });
+    return NextResponse.json(
+      { raw: await createRaw(body.text) },
+      { status: 201 },
+    );
   } catch {
     return errorResponse(
       "暂时无法保存原始内容，请稍后重试。",
