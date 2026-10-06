@@ -35,7 +35,13 @@ Raw {
 
 Raw 存储在本地运行时文件 `data/raw.json`，由 `lib/raw-storage.ts` 读写，并通过 `app/api/raw/route.ts` 提供创建和列表读取。Raw 创建成功后不会被 AI 或其他逻辑覆盖。
 
-当前 Phase 1 尚未实现 `OrganizeDraft`、Knowledge、KnowledgeRelation、Backlink 或 Graph；这些模型属于后续 Step，不能当作现有数据库表或已持久化实体。
+## Phase 1 transient Draft
+
+Step 2 已实现 `OrganizeDraft` 作为服务端返回的临时结构。它由 `types/organize.ts` 定义，包含 `title`、`summary`、`content`、`keyPoints`、`concepts`、`keywords` 和 `relatedKnowledge`。Draft 当前不持久化，也不会自动创建 Knowledge。
+
+`relatedKnowledge` 只能保留服务端确认存在的 Knowledge ID；当前系统尚无 Knowledge，因此该数组返回为空。DeepSeek 失败或返回非法结构时，Raw 保持不变。
+
+当前 Phase 1 尚未实现 Knowledge、KnowledgeRelation、Backlink 或 Graph；这些模型属于后续 Step，不能当作现有数据库表或已持久化实体。
 
 ## Long-term Raw 与标签
 

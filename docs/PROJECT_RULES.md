@@ -31,12 +31,12 @@ Phase 1 先建立一条可验证的持久化闭环：用户输入文本，Raw �
 
 Step 1（Raw + Storage）已 PASS。当前实现支持文本 Raw 的创建与读取、输入校验、连续写入、文件缺失恢复、损坏存储失败后的继续写入和重启持久化。Raw 使用 `data/raw.json`，该运行时文件不进入 Git。
 
+Step 2（DeepSeek + Structured Draft）已 PASS。服务端通过 `/api/organize` 按 `rawId` 读取 Raw，调用 DeepSeek，解析并校验结构化 `OrganizeDraft`，并在上游失败时保留 Raw。API Key 只从服务端环境变量读取。
+
 ### Not implemented in the current Phase 1 checkout
 
 以下功能仍属于后续范围，当前不得假定已经存在：
 
-- DeepSeek 或其他模型调用
-- `/api/organize` 与 `OrganizeDraft`
 - Knowledge、KnowledgeRelation、Backlink 和 Graph
 - OCR、多模态输入、Agent、RAG、Embedding 和向量数据库
 
