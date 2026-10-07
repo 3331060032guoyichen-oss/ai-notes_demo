@@ -198,6 +198,15 @@ export default function Home() {
     return items;
   }, [graph.edges, knowledges, raws]);
 
+  const nodeTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    graph.nodes.forEach((node) => map.set(node.id, node.title));
+    knowledges.forEach((knowledge) => {
+      if (!map.has(knowledge.id)) map.set(knowledge.id, knowledge.title);
+    });
+    return map;
+  }, [graph.nodes, knowledges]);
+
   const linkedWikiPages = selectedWikiPage
     ? wiki.links
         .filter((link) => link.sourceId === selectedWikiPage.id || link.targetId === selectedWikiPage.id)
@@ -449,7 +458,7 @@ export default function Home() {
   }
 
   function renderGraph() {
-    return <><header className="workspace-heading compact-heading"><div><p className="eyebrow">关系图谱</p><h1>看见知识如何连接。</h1><p>图谱只使用真实 Knowledge 和 Relation，不生成装饰性节点。</p></div><button className="button-secondary" type="button" onClick={() => setGraphRefresh((current) => current + 1)}>刷新网络</button></header>{graph.nodes.length === 0 ? <EmptyState title="关系图谱还没有节点" body="确认 Knowledge 后，真实节点会从这里开始生长。" action={<button className="button-dark" type="button" onClick={() => navigate("new-note")}>新建笔记</button>} /> : <div className="graph-workspace"><section className="network-map" aria-label="Knowledge 节点地图">{graph.nodes.map((node, index) => <button className={`network-node node-position-${index % 6}`} type="button" key={node.id} onClick={() => void handleGraphNodeClick(node.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{node.title}</strong><small>打开知识页</small></button>)}</section><section className="edge-list"><div className="section-heading-inline"><h2>关系</h2><span className="section-count">{graph.edges.length}</span></div>{graph.edges.length === 0 ? <p className="muted-note">当前没有 related 关系。可以在 Draft 审阅时接受关系建议。</p> : graph.edges.map((edge) => <div className="edge-row" key={edge.id}><div><strong>{edge.source.slice(-8)}</strong><span>↔</span><strong>{edge.target.slice(-8)}</strong></div><p>{edge.reason}</p></div>)}</section></div>}</>;
+    return <><header className="workspace-heading compact-heading"><div><p className="eyebrow">关系图谱</p><h1>看见知识如何连接。</h1><p>图谱只使用真实 Knowledge 和 Relation，不生成装饰性节点。</p></div><button className="button-secondary" type="button" onClick={() => setGraphRefresh((current) => current + 1)}>刷新网络</button></header>{graph.nodes.length === 0 ? <EmptyState title="关系图谱还没有节点" body="确认 Knowledge 后，真实节点会从这里开始生长。" action={<button className="button-dark" type="button" onClick={() => navigate("new-note")}>新建笔记</button>} /> : <div className="graph-workspace"><section className="network-map" aria-label="Knowledge 节点地图">{graph.nodes.map((node, index) => <button className={`network-node node-position-${index % 6}`} type="button" key={node.id} onClick={() => void handleGraphNodeClick(node.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{node.title}</strong><small>打开知识页</small></button>)}</section><section className="edge-list"><div className="section-heading-inline"><h2>关系</h2><span className="section-count">{graph.edges.length}</span></div>{graph.edges.length === 0 ? <p className="muted-note">当前没有 related 关系。可以在 Draft 审阅时接受关系建议。</p> : graph.edges.map((edge) => <div className="edge-row" key={edge.id}><div><strong>{nodeTitleById.get(edge.source) ?? edge.source}</strong><span>↔</span><strong>{nodeTitleById.get(edge.target) ?? edge.target}</strong></div><p>{edge.reason}</p></div>)}</section></div>}</>;
   }
 
   function renderLint() {
