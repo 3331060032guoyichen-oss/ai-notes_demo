@@ -9,7 +9,7 @@
 - Step 4 status: PASS
 - Step 5 status: PASS
 - Step 6 status: PASS
-- Current Step: Step 6 — Graph
+- Current Step: Wiki structure foundation
 - Phase 1 status: PASS
 - Next Step: Future phase planning
 - DeepSeek is connected only on the server.
@@ -39,10 +39,15 @@ Step 1 is merged into the `develop-guozechen` integration branch. The project is
 - `app/api/relations/[id]/route.ts`
 - `types/graph.ts`
 - `app/api/graph/route.ts`
+- `types/wiki.ts`
+- `lib/wiki-storage.ts`
+- `app/api/wiki/route.ts`
+- `data/wiki.json`
 - Draft confirmation UI in `app/page.tsx`
 - Runtime storage: `data/raw.json`
 - Runtime storage: `data/knowledge.json`
 - Runtime storage: `data/relations.json`
+- Article-derived Wiki structure: `data/wiki.json`
 
 The current UI accepts text, saves Raw data, and displays saved records. `POST /api/raw` validates the request and persists Raw data; `GET /api/raw` reads the saved records. `data/raw.json` is ignored by Git and is not a source-of-truth file in the repository.
 
@@ -62,6 +67,8 @@ Step 5 verification covered dynamic Backlink reads, empty results, unknown Knowl
 
 Step 6 verification covered dynamic Graph nodes and edges, a readable node list, clicking a node to load Knowledge details, and keeping Graph reads separate from the Raw/Draft/Knowledge write flow. The view uses the local Brandkit token style and no graph dependency.
 
+The current Wiki structure foundation stores the attached LLM Wiki article as an immutable Raw source and exposes 12 derived Wiki pages with 14 typed links. The page includes a browsable Wiki directory and detail view; it is intentionally read-only until the future Ingest / Proposal workflow is implemented.
+
 Final Phase 1 verification covered one fresh end-to-end chain: Raw creation, real DeepSeek Draft generation, user-edited confirmation, Knowledge persistence, accepted Relation, dynamic Backlink, Graph node/edge generation, Knowledge detail loading, and restart persistence for Raw, Knowledge, and Relation.
 
 ## Not implemented yet
@@ -69,4 +76,3 @@ Final Phase 1 verification covered one fresh end-to-end chain: Raw creation, rea
 - OCR, multimodal input, Agent, RAG, Embedding, and vector storage
 
 These remain future work outside the completed Phase 1 scope.
-

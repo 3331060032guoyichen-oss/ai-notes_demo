@@ -56,4 +56,3 @@ Phase 1 全链路已完成真实验收：Raw → DeepSeek Draft → 用户编辑
 ## UI 原则
 
 界面应安静、自然、克制、内容优先，避免紫蓝渐变、霓虹、玻璃拟态和无意义特效。详细规范见 `DESIGN_SYSTEM.md`。
-

@@ -85,6 +85,36 @@ Step 5 已实现 Backlink 动态查询：`GET /api/knowledge/:id/backlinks` 根�
 
 Graph 只是 Relation 的展示层，不是新的数据源。
 
+## Wiki structure derived from the LLM Wiki pattern
+
+当前项目新增了一个只读的 Wiki 结构层，用于承载由来源持续综合出的页面，不替代 Raw：
+
+```text
+WikiPage {
+  id: string
+  title: string
+  kind: overview | concept | architecture | workflow | reference | practice
+  summary: string
+  content: string
+  tags: string[]
+  parentId: string | null
+  sourceRawId: string
+  order: number
+  createdAt: string
+  updatedAt: string
+}
+
+WikiLink {
+  id: string
+  sourceId: string
+  targetId: string
+  type: contains | supports | operates_on | maintains | indexes | records | extends
+  reason: string
+}
+```
+
+`data/wiki.json` 是由 LLM Wiki 文章实例化出的第一组页面，当前覆盖总览、三层架构、Ingest、Query、Lint、Index / Log、人机分工和工具演进。每个页面都引用同一个不可变 Raw 来源。下一步再将该只读结构接入真正的 AI Ingest、Proposal 和用户确认流程。
+
 ## Phase 1 Graph view
 
 Step 6 已实现 `GET /api/graph`，实时从 Knowledge 和 KnowledgeRelation 生成 `nodes` 与 `edges`。Graph 不创建独立数据源，也不写入 `graph.json`；节点详情仍从 Knowledge 查询。
@@ -92,4 +122,3 @@ Step 6 已实现 `GET /api/graph`，实时从 Knowledge 和 KnowledgeRelation �
 ## Long-term Raw 与标签
 
 长期产品中的 Raw 可以扩展为图片、文本和上传文件，并与整理后的知识建立追溯关系。当前实现仅接受文本，因此不能按长期文件字段推断当前 Raw schema。标签是属性，默认不是图谱节点。
-

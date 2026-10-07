@@ -80,3 +80,15 @@ export async function createRaw(text: string): Promise<Raw> {
     return raw;
   });
 }
+
+export async function deleteRaw(id: string): Promise<Raw | null> {
+  return withWriteLock(async () => {
+    const raws = await readAll();
+    const raw = raws.find((candidate) => candidate.id === id) ?? null;
+
+    if (!raw) return null;
+
+    await persist(raws.filter((candidate) => candidate.id !== id));
+    return raw;
+  });
+}

@@ -10,7 +10,7 @@
 
 AI Notes 致力于将大学生的手写笔记、电子笔记和题目逐渐转化为结构化知识，并通过 Wiki、双向链接、知识图谱和知识卡片，让个人知识网络持续生长。
 
-本仓库当前仅包含 Demo 的项目基础骨架，不实现具体业务功能。
+当前 Demo 已完成 Raw → Draft → Knowledge → Relation → Graph 的 Phase 1 闭环，并加入了从 LLM Wiki 文章实例化出的首个可浏览 Wiki 结构。
 
 ## 未来计划
 
@@ -39,7 +39,7 @@ AI Notes 致力于将大学生的手写笔记、电子笔记和题目逐渐转�
 app/          Next.js 应用入口
 components/   可复用 UI 组件
 lib/          公共工具与服务边界
-data/         本地开发数据
+data/         本地开发数据与 Wiki 结构
 public/       静态资源
 types/        TypeScript 类型
 docs/         产品、数据、设计与开发文档
