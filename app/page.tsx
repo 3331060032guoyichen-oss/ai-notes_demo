@@ -99,7 +99,7 @@ export default function Home() {
   const [wiki, setWiki] = useState<WikiData>({ pages: [], links: [] });
   const [selectedRawId, setSelectedRawId] = useState<string | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
-  const [selectedWikiPageId, setSelectedWikiPageId] = useState<string | null>(null);
+  const [, setSelectedWikiPageId] = useState<string | null>(null);
   const [draft, setDraft] = useState<OrganizeDraft | null>(null);
   const [draftRawId, setDraftRawId] = useState<string | null>(null);
   const [selectedRelationIds, setSelectedRelationIds] = useState<string[]>([]);
@@ -114,7 +114,7 @@ export default function Home() {
     knowledge: true,
     wiki: true,
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [organizingRawId, setOrganizingRawId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -196,7 +196,7 @@ export default function Home() {
   }, [contextMenu]);
 
   const selectedRaw = raws.find((raw) => raw.id === selectedRawId) ?? raws[0] ?? null;
-  const selectedWikiPage = wiki.pages.find((page) => page.id === selectedWikiPageId) ?? wiki.pages[0] ?? null;
+  
 
   const mentionCandidates = useMemo(() => {
     if (mentionQuery === null) return [];
