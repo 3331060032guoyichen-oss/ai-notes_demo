@@ -9,7 +9,8 @@
 - Step 4 status: PASS
 - Step 5 status: PASS
 - Step 6 status: PASS
-- Current Step: Wiki structure foundation
+- Step 7 status: PASS (workspace redesign: file-tree navigation, tabs, `/api/assistant`, Knowledge inline editing)
+- Current Step: see `AGENTS.md` for the authoritative current-state summary
 - Phase 1 status: PASS
 - Next Step: Future phase planning
 - DeepSeek is connected only on the server.
@@ -43,6 +44,9 @@ Step 1 is merged into the `develop-guozechen` integration branch. The project is
 - `lib/wiki-storage.ts`
 - `app/api/wiki/route.ts`
 - `data/wiki.json`
+- `app/api/assistant/route.ts` (context-aware Q&A, added in Step 7)
+- `PATCH` handler in `app/api/knowledge/[id]/route.ts` (added in Step 7)
+- `AGENTS.md` (AI-agent entry handbook, added in Step 7)
 - Draft confirmation UI in `app/page.tsx`
 - Runtime storage: `data/raw.json`
 - Runtime storage: `data/knowledge.json`
@@ -68,6 +72,8 @@ Step 5 verification covered dynamic Backlink reads, empty results, unknown Knowl
 Step 6 verification covered dynamic Graph nodes and edges, a readable node list, clicking a node to load Knowledge details, and keeping Graph reads separate from the Raw/Draft/Knowledge write flow. The view uses the local Brandkit token style and no graph dependency.
 
 The current Wiki structure foundation stores the attached LLM Wiki article as an immutable Raw source and exposes 12 derived Wiki pages with 14 typed links. The page includes a browsable Wiki directory and detail view; it is intentionally read-only until the future Ingest / Proposal workflow is implemented.
+
+Step 7 verification covered: file-tree navigation (Raw/Knowledge/Wiki groups) opening tab-based detail panes, duplicate-tab dedup and close/reactivate behavior, `PATCH /api/knowledge/:id` field validation and 404 handling, Knowledge title/summary/content/concepts inline editing with real persistence to `data/knowledge.json`, and `POST /api/assistant` returning grounded answers for `knowledge`/`raw`/`wiki`/`draft`/`none` context types (including the real DeepSeek call and the 404 path for an unknown context id).
 
 Final Phase 1 verification covered one fresh end-to-end chain: Raw creation, real DeepSeek Draft generation, user-edited confirmation, Knowledge persistence, accepted Relation, dynamic Backlink, Graph node/edge generation, Knowledge detail loading, and restart persistence for Raw, Knowledge, and Relation.
 

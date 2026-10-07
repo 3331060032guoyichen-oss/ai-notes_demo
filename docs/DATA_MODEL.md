@@ -39,7 +39,7 @@ Raw 存储在本地运行时文件 `data/raw.json`，由 `lib/raw-storage.ts` �
 
 Step 2 已实现 `OrganizeDraft` 作为服务端返回的临时结构。它由 `types/organize.ts` 定义，包含 `title`、`summary`、`content`、`keyPoints`、`concepts`、`keywords` 和 `relatedKnowledge`。Draft 当前不持久化，也不会自动创建 Knowledge。
 
-`relatedKnowledge` 只能保留服务端确认存在的 Knowledge ID；当前系统尚无 Knowledge，因此该数组返回为空。DeepSeek 失败或返回非法结构时，Raw 保持不变。
+`relatedKnowledge` 只能保留服务端确认存在的 Knowledge ID；没有可匹配的已有 Knowledge 时该数组返回为空。DeepSeek 失败或返回非法结构时，Raw 保持不变。
 
 ## Phase 1 Knowledge model
 

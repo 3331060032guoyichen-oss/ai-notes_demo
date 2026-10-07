@@ -8,12 +8,14 @@ AI Notes 是面向大学生的生长式 AI 知识系统。它帮助用户将手�
 
 原始学习内容经过 AI 理解、知识提取和 AI 提议后，必须由用户确认，再进入 Wiki、双向链接与知识网络。AI 辅助，用户拥有最终决定权。
 
-## 四类节点
+## 四类节点（长期目标模型，当前未实现）
 
 - `Note`：笔记
 - `Question`：题目
 - `Concept`：知识点
 - `Card`：知识卡片
+
+当前 Phase 1 实际落地的模型是 `Raw` / `Knowledge` / `KnowledgeRelation`（见 `DATA_MODEL.md`），尚未拆分为上述四类节点，不要假设它们已存在于代码中。
 
 ## AI 提议与确认
 
@@ -21,7 +23,7 @@ AI Notes 是面向大学生的生长式 AI 知识系统。它帮助用户将手�
 
 ## Long-term Raw / Wiki model
 
-Raw 保存原始图片、文本和上传文件；Wiki 保存整理后的 Note、Question、Concept 与 Card。Raw 必须保留并可追溯。
+Raw 保存原始图片、文本和上传文件；Wiki 保存整理后的 Note、Question、Concept 与 Card（长期目标）。Raw 必须保留并可追溯。当前实现中 Wiki 是只读演示层（`data/wiki.json`），尚未承载这四类节点。
 
 ## Phase 1 scope
 
@@ -42,6 +44,8 @@ Step 5（Backlink）已 PASS。Backlink 由当前 KnowledgeRelation 动态查询
 Step 6（Graph View）已 PASS。Graph 从当前 Knowledge 和 KnowledgeRelation 动态生成节点与边，节点可点击进入 Knowledge 详情；Graph 只是展示层，故障不会改变 Raw、Knowledge 或 Relation 的主流程。
 
 Phase 1 全链路已完成真实验收：Raw → DeepSeek Draft → 用户编辑确认 → Knowledge → 用户接受 Relation → Backlink → Graph → Knowledge 详情，并验证了服务重启后的持久化。
+
+Step 7（工作台改版）已 PASS。左侧导航改为 Raw / Knowledge / Wiki 文件树，点击条目以标签页在中间区域打开；新增 `PATCH /api/knowledge/:id` 支持标题右键改名、摘要/正文/概念内联编辑；新增 `POST /api/assistant`，AI 面板改为 `@` 提及式问答，服务端按引用重新读取真实内容再回答。详见 `AGENTS.md`。
 
 ### Not implemented in the current Phase 1 checkout
 

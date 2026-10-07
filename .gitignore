@@ -42,3 +42,6 @@ coverage/
 *.tmp
 *.swp
 next-env.d.ts
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
