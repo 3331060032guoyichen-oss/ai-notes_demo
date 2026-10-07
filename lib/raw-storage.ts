@@ -62,6 +62,11 @@ export async function listRaw(): Promise<Raw[]> {
   return readAll();
 }
 
+export async function getRaw(id: string): Promise<Raw | null> {
+  const raws = await readAll();
+  return raws.find((raw) => raw.id === id) ?? null;
+}
+
 export async function createRaw(text: string): Promise<Raw> {
   return withWriteLock(async () => {
     const raws = await readAll();
@@ -72,6 +77,18 @@ export async function createRaw(text: string): Promise<Raw> {
     };
 
     await persist([...raws, raw]);
+    return raw;
+  });
+}
+
+export async function deleteRaw(id: string): Promise<Raw | null> {
+  return withWriteLock(async () => {
+    const raws = await readAll();
+    const raw = raws.find((candidate) => candidate.id === id) ?? null;
+
+    if (!raw) return null;
+
+    await persist(raws.filter((candidate) => candidate.id !== id));
     return raw;
   });
 }
