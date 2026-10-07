@@ -1,16 +1,34 @@
 # Development Workflow
 
-## 4 人协作
+## 分工
 
-按 UI、AI、Knowledge、Product / Integration 划分模块边界。成员主要在自己的 feature 分支开发，完成稳定功能后合并到集成分支，最终由集成分支合并到 `main`。
+按三条工作线划分模块边界：**知识库和图谱**、**UI 界面**、**Skills 和插件**（见 `PROJECT_RULES.md`）。
+成员主要在自己的 feature 分支开发，完成稳定功能后合并到集成分支，最终由集成分支合并到 `main`。
 
 ## Git 分支
 
-- `main`：稳定版本
-- `develop-guozechen`：当前仓库的日常集成分支
-- `feature/*`：按任务创建，例如 `feature/raw-storage`、`feature/ui`、`feature/ai` 和 `feature/knowledge`
+远端实际存在的分支（已用 `git ls-remote` 核实）：
 
-远端实际存在的分支（已用 `git ls-remote` 核实）：`main`、`develop-guozechen`、`feature/raw-storage`。**没有 `develop` 分支** —— 若本地还残留 `origin/develop` 引用，那是过期的远程跟踪引用，用 `git fetch --prune` 清理即可。所有新工作提交到 `develop-guozechen`；`feature/raw-storage` 是 Step 1 的历史开发分支。后续新增功能仍应先在对应 feature 分支验证，再合并到 `develop-guozechen`。
+- `main`：稳定版本，默认分支
+- `develop-guozechen`：日常集成分支，**所有新工作提交到这里**
+- `feature/*`：按任务创建，例如 `feature/raw-storage`（Step 1 历史分支）
+
+> 远端**没有** `develop` 分支。若本地还残留 `origin/develop` 引用，那是过期的远程跟踪引用，用 `git fetch --prune` 清理即可。
+
+## 环境与命令
+
+包管理器是 **pnpm**（`package.json` 里 `packageManager: pnpm@11.25.0`）。不要用 npm 或 yarn 安装依赖，会破坏 lockfile 和 `node_modules` 的符号链接结构。
+
+```bash
+pnpm install
+cp .env.example .env.local   # 填入 DEEPSEEK_API_KEY
+pnpm dev                     # http://localhost:3000
+```
+
+其他可用命令：`pnpm build`、`pnpm start`、`pnpm lint`。
+**没有测试脚本**，不要假设 `pnpm test` 存在；验证方式是构建 + 手动走查 + 接口实测。
+
+注意：不要一边开着 `pnpm dev` 一边跑 `pnpm build` —— 两者共用 `.next/` 目录，会互相覆盖。
 
 ## Step gate
 
@@ -28,6 +46,10 @@ Step 7（工作台改版）已完成并通过验证：左侧导航改为 Raw / K
 
 修改前阅读相关 docs 与现有代码，明确影响范围并复用已有组件；修改后运行项目、检查相关页面并报告修改文件和测试结果。Prompt 应包含任务目标、上下文、相关文件、禁止修改内容、输入输出和验收标准。
 
+使用 AI 编码工具时，请先让它读仓库根目录的 [`AGENTS.md`](../AGENTS.md) —— 那是给 AI 看的总入口，包含真实的仓库结构、技术栈、已实现/已删除功能清单和已知坑。
+
 ## 模块边界与合并规则
 
-前端通过内部 API 访问 AI 服务，密钥仅存在服务器环境变量。知识结构变化必须经过 Proposal 和用户确认。禁止未经负责人确认的大范围重构；合并前需确认数据模型、UI 规范和基本错误状态没有被破坏。
+- 前端通过内部 API 访问 AI 服务，**密钥仅存在服务器环境变量**，不得进入浏览器或代码。
+- 知识结构的变化必须经过用户确认才写入。
+- 禁止未经负责人确认的大范围重构；合并前需确认数据模型、UI 规范和基本错误状态没有被破坏。

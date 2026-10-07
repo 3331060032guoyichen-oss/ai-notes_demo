@@ -141,12 +141,13 @@ type Tab =
 | 文件 | 状态 |
 |---|---|
 | `AGENTS.md`（本文件） | ✅ **权威**，冲突时以这里为准 |
+| `docs/ROADMAP.md` | ✅ 有效（目标 / 现状 / 差距对照，排期依据） |
 | `docs/PROJECT_RULES.md` | ✅ 有效（产品方向与四类节点的长期模型） |
 | `docs/DATA_MODEL.md` | ✅ 有效（区分长期模型 vs 当前实际 schema，注意别混） |
-| `docs/DESIGN_SYSTEM.md` | ✅ 有效（视觉规范） |
+| `docs/DESIGN_SYSTEM.md` | ✅ 有效（视觉规范，含与当前实现的差距说明） |
 | `docs/DEV_WORKFLOW.md` | ✅ 有效（分支与提交规范） |
 | `docs/PROJECT_CONTEXT.md` | ⚠️ 阶段性状态记录，可能滞后于代码 |
-| `docs/THIRD_PARTY.md` | ✅ 有效（第三方依赖登记表，当前为空，引入依赖时填） |
+| `docs/THIRD_PARTY.md` | ✅ 有效（第三方依赖登记表） |
 | `docs/CODEX_AI_LEARNING_UI_BRIEF.md` | ⚠️ **历史 brief，已过时**。文中要求做 Study / Lint / 力导向图谱，这些已被推翻。仅作背景参考，**不要照着做** |
 | `README.md` | ✅ 面向人的简述 |
 
