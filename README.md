@@ -12,6 +12,20 @@ AI Notes 致力于将大学生的手写笔记、电子笔记和题目逐渐转�
 
 当前 Demo 已完成 Raw → Draft → Knowledge → Relation → Graph 的 Phase 1 闭环，并加入了从 LLM Wiki 文章实例化出的首个可浏览 Wiki 结构。
 
+## 快速开始
+
+```bash
+git clone https://github.com/3331060032guoyichen-oss/ai-notes_demo.git
+cd ai-notes_demo
+pnpm install
+cp .env.example .env.local   # 填入 DEEPSEEK_API_KEY，见下方说明
+pnpm dev
+```
+
+打开 http://localhost:3000。首次打开是空白状态（没有预置笔记），从左侧「新建笔记」开始即可：新建笔记 → AI 整理 → 确认入库 → 在知识库/图谱/Wiki 里查看。
+
+没有配置 `DEEPSEEK_API_KEY` 时，除「AI 整理」外的其余功能（新建笔记、知识库、图谱、Wiki）都可以正常使用；点击「AI 整理」会返回明确的错误提示。详见 [`.env.example`](.env.example)。
+
 ## 未来计划
 
 - 手写笔记数字化

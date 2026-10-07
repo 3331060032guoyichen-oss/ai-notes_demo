@@ -107,3 +107,30 @@ export async function createKnowledge(
     return { knowledge, created: true };
   });
 }
+
+type KnowledgeUpdateInput = Partial<
+  Pick<Knowledge, "title" | "summary" | "content" | "keyPoints" | "concepts" | "keywords">
+>;
+
+export async function updateKnowledge(
+  id: string,
+  input: KnowledgeUpdateInput,
+): Promise<Knowledge | null> {
+  return withWriteLock(async () => {
+    const knowledges = await readAll();
+    const index = knowledges.findIndex((item) => item.id === id);
+
+    if (index === -1) return null;
+
+    const updated: Knowledge = {
+      ...knowledges[index],
+      ...input,
+      updatedAt: new Date().toISOString(),
+    };
+    const next = [...knowledges];
+    next[index] = updated;
+
+    await persist(next);
+    return updated;
+  });
+}

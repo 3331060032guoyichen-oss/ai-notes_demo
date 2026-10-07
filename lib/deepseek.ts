@@ -86,6 +86,103 @@ export function parseOrganizeDraft(content: string): OrganizeDraft {
   return parsed;
 }
 
+type AssistantInput = {
+  question: string;
+  context: string;
+};
+
+export async function askAssistant({
+  question,
+  context,
+}: AssistantInput): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+
+  if (!apiKey) {
+    throw new DeepSeekError(
+      "CONFIG_MISSING",
+      "DeepSeek API key is not configured.",
+    );
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), getTimeoutMs());
+
+  try {
+    let response: Response;
+
+    try {
+      response = await fetch(`${getBaseUrl()}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: process.env.DEEPSEEK_MODEL || DEFAULT_MODEL,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a study assistant inside a note-taking app. Only answer using the material provided in the user message's `context` field. If the context is empty or doesn't contain the answer, say so plainly instead of inventing information. Answer in the same language as the question. Keep answers concise.",
+            },
+            {
+              role: "user",
+              content: JSON.stringify({ context, question }),
+            },
+          ],
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new DeepSeekError("TIMEOUT", "DeepSeek request timed out.");
+      }
+
+      throw new DeepSeekError("UPSTREAM_ERROR", "DeepSeek request failed.");
+    }
+
+    if (!response.ok) {
+      throw new DeepSeekError(
+        "UPSTREAM_ERROR",
+        `DeepSeek returned HTTP ${response.status}.`,
+      );
+    }
+
+    let payload: unknown;
+
+    try {
+      payload = await response.json();
+    } catch {
+      throw new DeepSeekError(
+        "UPSTREAM_INVALID_JSON",
+        "DeepSeek returned a non-JSON response.",
+      );
+    }
+
+    if (!isRecord(payload)) {
+      throw new DeepSeekError(
+        "UPSTREAM_INVALID_JSON",
+        "DeepSeek returned an invalid response envelope.",
+      );
+    }
+
+    const completion = payload as ChatCompletionResponse;
+    const content = completion.choices?.[0]?.message?.content;
+
+    if (typeof content !== "string" || !content.trim()) {
+      throw new DeepSeekError(
+        "UPSTREAM_INVALID_JSON",
+        "DeepSeek response did not contain an answer.",
+      );
+    }
+
+    return content.trim();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 type OrganizeInput = {
   rawText: string;
   existingKnowledge: Array<{
