@@ -3,6 +3,8 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { LandingPage } from "../components/landing-page";
+
 import type { GraphEdge, GraphNode } from "../types/graph";
 import type { Knowledge } from "../types/knowledge";
 import type { OrganizeDraft } from "../types/organize";
@@ -90,6 +92,7 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
 }
 
 export default function Home() {
+  const [showLanding, setShowLanding] = useState(true);
   const [openTabs, setOpenTabs] = useState<Tab[]>([NEW_NOTE_TAB]);
   const [activeTabId, setActiveTabId] = useState(NEW_NOTE_TAB.id);
   const [text, setText] = useState("");
@@ -627,6 +630,8 @@ export default function Home() {
   }
 
   const activeTab = openTabs.find((tab) => tab.id === activeTabId) ?? openTabs[0] ?? NEW_NOTE_TAB;
+
+  if (showLanding) return <LandingPage onEnter={() => setShowLanding(false)} />;
 
   return <main className="app-shell">
     <div className="mobile-topbar"><button className="mobile-menu-button" type="button" onClick={() => setMobileNavOpen((current) => !current)} aria-expanded={mobileNavOpen} aria-controls="workspace-nav">菜单</button><AppLogo /><button className="mobile-new-button" type="button" onClick={() => navigate("new-note")}>新建</button></div>
