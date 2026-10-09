@@ -12,7 +12,7 @@ export async function GET() {
       {
         error: {
           code: "WIKI_READ_FAILED",
-          message: "暂时无法读取 Wiki 结构，请稍后重试。",
+          message: "参考库暂时没有载入。其他内容没有受到影响，请稍后重试。",
         },
       },
       { status: 500 },

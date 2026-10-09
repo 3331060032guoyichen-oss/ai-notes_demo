@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { InterfaceSoundProvider } from "../components/interface-sound";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body><InterfaceSoundProvider>{children}</InterfaceSoundProvider></body>
     </html>
   );
 }

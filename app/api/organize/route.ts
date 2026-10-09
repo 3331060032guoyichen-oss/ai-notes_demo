@@ -20,17 +20,17 @@ export async function POST(request: Request) {
   try {
     parsed = await request.json();
   } catch {
-    return errorResponse("请求内容必须是有效的 JSON。", 400, "INVALID_JSON");
+    return errorResponse("请求内容无法识别，请重新提交。", 400, "INVALID_JSON");
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return errorResponse("请求内容必须是 JSON 对象。", 400, "INVALID_BODY");
+    return errorResponse("请求格式无法识别，请重新提交。", 400, "INVALID_BODY");
   }
 
   const body = parsed as OrganizeRequestBody;
 
   if (typeof body.rawId !== "string" || !body.rawId.trim()) {
-    return errorResponse("请提供 rawId 字段。", 400, "RAW_ID_REQUIRED");
+    return errorResponse("没有找到要整理的原始记录，请重新选择。", 400, "RAW_ID_REQUIRED");
   }
 
   let raw;
@@ -39,14 +39,14 @@ export async function POST(request: Request) {
     raw = await getRaw(body.rawId);
   } catch {
     return errorResponse(
-      "暂时无法读取原始内容，请稍后重试。",
+      "原始记录暂时没有载入。已保存的数据没有改变，请稍后重试。",
       500,
       "RAW_STORAGE_READ_FAILED",
     );
   }
 
   if (!raw) {
-    return errorResponse("找不到对应的原始内容。", 404, "RAW_NOT_FOUND");
+    return errorResponse("这条原始记录已不存在，请刷新目录后重新选择。", 404, "RAW_NOT_FOUND");
   }
 
   try {
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     if (error instanceof DeepSeekError) {
       if (error.code === "CONFIG_MISSING") {
         return errorResponse(
-          "服务端尚未配置 DeepSeek API Key。",
+          "编辑助理尚未完成服务配置。原始记录仍然安全，请联系维护者。",
           503,
           "DEEPSEEK_CONFIG_MISSING",
         );
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
       if (error.code === "TIMEOUT") {
         return errorResponse(
-          "DeepSeek 请求超时，请稍后使用同一个 rawId 重试。",
+          "编辑助理这次没有按时返回。原始记录仍然安全，请稍后重新提出整理。",
           504,
           "DEEPSEEK_TIMEOUT",
         );
@@ -85,19 +85,19 @@ export async function POST(request: Request) {
 
       if (error.code === "UPSTREAM_INVALID_JSON") {
         return errorResponse(
-          "DeepSeek 返回的 Draft 无法通过结构化校验。",
+          "编辑助理返回的整理稿无法审阅。原始记录仍然安全，请重新整理。",
           502,
           "INVALID_DRAFT",
         );
       }
 
       return errorResponse(
-        "DeepSeek 暂时不可用，请稍后使用同一个 rawId 重试。",
+        "编辑助理暂时无法回应。原始记录仍然安全，请稍后重新提出整理。",
         502,
         "DEEPSEEK_UPSTREAM_ERROR",
       );
     }
 
-    return errorResponse("整理失败，请稍后重试。", 500, "ORGANIZE_FAILED");
+    return errorResponse("整理稿暂时没有提出。原始记录仍然安全，请稍后重试。", 500, "ORGANIZE_FAILED");
   }
 }

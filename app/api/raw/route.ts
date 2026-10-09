@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createRaw, deleteRaw, listRaw } from "../../../lib/raw-storage";
 import { listKnowledge } from "../../../lib/knowledge-storage";
+import { createRaw, deleteRaw, listRaw } from "../../../lib/raw-storage";
 
 const MAX_RAW_LENGTH = 50_000;
 
@@ -18,7 +18,7 @@ export async function GET() {
     return NextResponse.json({ raws: await listRaw() });
   } catch {
     return errorResponse(
-      "暂时无法读取原始内容，请稍后重试。",
+      "原始记录暂时没有载入。已保存的数据没有改变，请稍后重试。",
       500,
       "RAW_STORAGE_READ_FAILED",
     );
@@ -31,26 +31,26 @@ export async function POST(request: Request) {
   try {
     parsed = await request.json();
   } catch {
-    return errorResponse("请求内容必须是有效的 JSON。", 400, "INVALID_JSON");
+    return errorResponse("请求内容无法识别，请重新提交。", 400, "INVALID_JSON");
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return errorResponse("请求内容必须是 JSON 对象。", 400, "INVALID_BODY");
+    return errorResponse("请求格式无法识别，请重新提交。", 400, "INVALID_BODY");
   }
 
   const body = parsed as RawRequestBody;
 
   if (typeof body.text !== "string") {
-    return errorResponse("请提供 text 字段。", 400, "TEXT_REQUIRED");
+    return errorResponse("没有收到要留下的内容，请重新填写。", 400, "TEXT_REQUIRED");
   }
 
   if (!body.text.trim()) {
-    return errorResponse("原始内容不能为空。", 400, "TEXT_EMPTY");
+    return errorResponse("先写下一段原话，再尝试保存。", 400, "TEXT_EMPTY");
   }
 
   if (body.text.length > MAX_RAW_LENGTH) {
     return errorResponse(
-      `原始内容不能超过 ${MAX_RAW_LENGTH} 个字符。`,
+      `这段原话不能超过 ${MAX_RAW_LENGTH} 个字符，请删减后再保存。`,
       400,
       "TEXT_TOO_LONG",
     );
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     );
   } catch {
     return errorResponse(
-      "暂时无法保存原始内容，请稍后重试。",
+      "这段原话暂时没有留下。内容没有写入，请稍后重试。",
       500,
       "RAW_STORAGE_WRITE_FAILED",
     );
@@ -76,36 +76,38 @@ export async function DELETE(request: Request) {
   try {
     parsed = await request.json();
   } catch {
-    return errorResponse("请求内容必须是有效的 JSON。", 400, "INVALID_JSON");
+    return errorResponse("请求内容无法识别，请重新提交。", 400, "INVALID_JSON");
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return errorResponse("请求内容必须是 JSON 对象。", 400, "INVALID_BODY");
+    return errorResponse("请求格式无法识别，请重新提交。", 400, "INVALID_BODY");
   }
 
   const body = parsed as RawRequestBody;
 
   if (typeof body.rawId !== "string" || !body.rawId.trim()) {
-    return errorResponse("请提供 rawId 字段。", 400, "RAW_ID_REQUIRED");
+    return errorResponse("没有找到要移除的原始记录，请重新选择。", 400, "RAW_ID_REQUIRED");
   }
 
   try {
     const knowledges = await listKnowledge();
     if (knowledges.some((knowledge) => knowledge.rawId === body.rawId)) {
       return errorResponse(
-        "这条原始笔记已经进入 Knowledge，暂时不能直接删除。请先处理关联知识。",
+        "这条原始记录已有知识页引用，暂时不能移除。请先处理对应的知识页。",
         409,
         "RAW_REFERENCED_BY_KNOWLEDGE",
       );
     }
 
     const deleted = await deleteRaw(body.rawId);
-    if (!deleted) return errorResponse("找不到对应的原始笔记。", 404, "RAW_NOT_FOUND");
+    if (!deleted) {
+      return errorResponse("这条原始记录已不存在，请刷新目录。", 404, "RAW_NOT_FOUND");
+    }
 
     return NextResponse.json({ deleted });
   } catch {
     return errorResponse(
-      "暂时无法删除原始笔记，请稍后重试。",
+      "这条原始记录暂时无法移除。其他内容没有受到影响，请稍后重试。",
       500,
       "RAW_STORAGE_DELETE_FAILED",
     );

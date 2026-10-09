@@ -15,7 +15,7 @@ export async function DELETE(
 
     if (!deleted) {
       return NextResponse.json(
-        { error: { code: "RELATION_NOT_FOUND", message: "找不到对应的知识关系。" } },
+        { error: { code: "RELATION_NOT_FOUND", message: "这条交叉引用已不存在，请刷新知识网络。" } },
         { status: 404 },
       );
     }
@@ -23,7 +23,7 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 });
   } catch {
     return NextResponse.json(
-      { error: { code: "RELATION_STORAGE_WRITE_FAILED", message: "暂时无法删除知识关系，请稍后重试。" } },
+      { error: { code: "RELATION_STORAGE_WRITE_FAILED", message: "这条交叉引用暂时无法移除。知识页没有受到影响，请稍后重试。" } },
       { status: 500 },
     );
   }

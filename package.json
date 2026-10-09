@@ -13,22 +13,24 @@
   "dependencies": {
     "next": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "0.186.0"
   },
- "devDependencies": {
-   "@eslint/eslintrc": "^3.3.7",
-   "@next/eslint-plugin-next": "^15.5.26",
-   "@types/node": "^22.0.0",
-   "@types/react": "^19.0.0",
-   "@types/react-dom": "^19.0.0",
-   "@typescript-eslint/eslint-plugin": "^8.0.0",
-   "@typescript-eslint/parser": "^8.0.0",
-   "eslint": "^9.0.0",
-   "eslint-config-next": "^15.0.0",
-   "eslint-plugin-import": "^2.31.0",
-   "eslint-plugin-jsx-a11y": "^6.10.0",
-   "eslint-plugin-react": "^7.37.0",
-   "eslint-plugin-react-hooks": "^5.0.0",
-   "typescript": "^5.0.0"
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@next/eslint-plugin-next": "^15.5.26",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "0.186.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "typescript": "^5.0.0"
   }
 }

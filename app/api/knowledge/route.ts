@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json({ knowledges: await listKnowledge() });
   } catch {
     return errorResponse(
-      "暂时无法读取知识内容，请稍后重试。",
+      "知识页暂时没有载入。已收录的内容没有改变，请稍后重试。",
       500,
       "KNOWLEDGE_STORAGE_READ_FAILED",
     );
@@ -33,28 +33,28 @@ export async function POST(request: Request) {
   try {
     parsed = await request.json();
   } catch {
-    return errorResponse("请求内容必须是有效的 JSON。", 400, "INVALID_JSON");
+    return errorResponse("请求内容无法识别，请重新提交。", 400, "INVALID_JSON");
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return errorResponse("请求内容必须是 JSON 对象。", 400, "INVALID_BODY");
+    return errorResponse("请求格式无法识别，请重新提交。", 400, "INVALID_BODY");
   }
 
   const body = parsed as KnowledgeRequestBody;
 
   if (typeof body.rawId !== "string" || !body.rawId.trim()) {
-    return errorResponse("请提供 rawId 字段。", 400, "RAW_ID_REQUIRED");
+    return errorResponse("没有找到整理稿对应的原始记录，请重新整理。", 400, "RAW_ID_REQUIRED");
   }
 
   if (!isOrganizeDraft(body.draft)) {
-    return errorResponse("Draft 结构无效，请重新整理。", 400, "INVALID_DRAFT");
+    return errorResponse("整理稿的内容不完整，暂时无法收录。请重新整理。", 400, "INVALID_DRAFT");
   }
 
   try {
     const raw = await getRaw(body.rawId);
 
     if (!raw) {
-      return errorResponse("找不到对应的原始内容。", 404, "RAW_NOT_FOUND");
+      return errorResponse("整理稿对应的原始记录已不存在，暂时无法收录。", 404, "RAW_NOT_FOUND");
     }
 
     const result = await createKnowledge({
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: result.created ? 201 : 200 });
   } catch {
     return errorResponse(
-      "暂时无法保存知识内容，请稍后重试。",
+      "整理稿暂时无法收录。原始记录仍然安全，请稍后重试。",
       500,
       "KNOWLEDGE_STORAGE_WRITE_FAILED",
     );

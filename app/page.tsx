@@ -3,6 +3,11 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  SoundPreferencePrompt,
+  SoundToggle,
+  useInterfaceSound,
+} from "../components/interface-sound";
 import { LandingPage } from "../components/landing-page";
 
 import type { GraphEdge, GraphNode } from "../types/graph";
@@ -30,13 +35,13 @@ type Tab =
   | { id: string; kind: "draft"; rawId: string; label: string };
 
 const viewMeta: Record<ViewKey, { label: string; shortLabel: string }> = {
-  "new-note": { label: "新建笔记", shortLabel: "新建" },
-  graph: { label: "关系图谱", shortLabel: "图谱" },
+  "new-note": { label: "留下原话", shortLabel: "记录" },
+  graph: { label: "知识网络", shortLabel: "网络" },
 };
 
 const directNavViews: ViewKey[] = ["new-note", "graph"];
 
-const NEW_NOTE_TAB: Tab = { id: "view:new-note", kind: "view", viewKey: "new-note", label: "新建笔记" };
+const NEW_NOTE_TAB: Tab = { id: "view:new-note", kind: "view", viewKey: "new-note", label: "留下原话" };
 
 const wikiKindLabels: Record<WikiPage["kind"], string> = {
   overview: "总览",
@@ -92,6 +97,7 @@ function EmptyState({ title, body, action }: { title: string; body: string; acti
 }
 
 export default function Home() {
+  const { play } = useInterfaceSound();
   const [showLanding, setShowLanding] = useState(true);
   const [openTabs, setOpenTabs] = useState<Tab[]>([NEW_NOTE_TAB]);
   const [activeTabId, setActiveTabId] = useState(NEW_NOTE_TAB.id);
@@ -159,7 +165,7 @@ export default function Home() {
         setSelectedRawId((current) => current ?? nextRaws[0]?.id ?? null);
         setSelectedWikiPageId((current) => current ?? nextWikiPages[0]?.id ?? null);
       } catch {
-        if (active) setError("暂时无法读取已保存的内容。");
+        if (active) setError("内容暂时没有载入。你的本地记录没有受到影响，请稍后重试。");
       } finally {
         if (active) setIsLoading(false);
       }
@@ -176,10 +182,10 @@ export default function Home() {
       try {
         const response = await fetch("/api/graph");
         const payload = (await response.json()) as GraphPayload;
-        if (!response.ok) throw new Error("Graph 读取失败");
+        if (!response.ok) throw new Error("知识网络读取失败");
         if (active) setGraph({ nodes: payload.nodes ?? [], edges: payload.edges ?? [] });
       } catch {
-        if (active) setError("知识网络暂时无法读取，其他学习流程仍可继续。");
+        if (active) setError("知识网络暂时没有载入。已收录的内容仍然安全，请稍后重试。");
       }
     }
 
@@ -265,14 +271,14 @@ export default function Home() {
   }
 
   function openDraftTab(rawId: string) {
-    openTab({ id: `draft:${rawId}`, kind: "draft", rawId, label: "Draft 审阅" });
+    openTab({ id: `draft:${rawId}`, kind: "draft", rawId, label: "审阅整理稿" });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     clearFeedback();
     if (!text.trim()) {
-      setError("请先输入学习内容。");
+      setError("先写下一段原话，再把它留下。");
       return;
     }
 
@@ -284,13 +290,14 @@ export default function Home() {
         body: JSON.stringify({ text }),
       });
       const payload = (await response.json()) as { raw?: Raw; error?: { message?: string } };
-      if (!response.ok || !payload.raw) throw new Error(payload.error?.message ?? "保存失败");
+      if (!response.ok || !payload.raw) throw new Error(payload.error?.message ?? "这段原话暂时没有留下。请稍后重试。");
       setRaws((current) => [payload.raw!, ...current]);
       setSelectedRawId(payload.raw.id);
       setText("");
-      setNotice("原始笔记已保存。它仍然保持不变，下一步可以请求 AI 整理。");
+      setNotice("原始记录已留下。它会保持原样，你可以请编辑助理提出整理稿。");
+      play("success");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "暂时无法保存原始笔记。");
+      setError(submitError instanceof Error ? submitError.message : "这段原话暂时没有留下。内容仍在输入框中，请稍后重试。");
     } finally {
       setIsSaving(false);
     }
@@ -298,7 +305,7 @@ export default function Home() {
 
   async function handleDeleteRaw(raw: Raw) {
     setContextMenu(null);
-    if (!window.confirm(`确定删除这条原始笔记吗？\n\n${getPreview(raw.text, 100)}`)) return;
+    if (!window.confirm(`确定移除这条原始记录吗？\n\n${getPreview(raw.text, 100)}`)) return;
 
     clearFeedback();
     try {
@@ -308,12 +315,12 @@ export default function Home() {
         body: JSON.stringify({ rawId: raw.id }),
       });
       const payload = (await response.json()) as { deleted?: Raw; error?: { message?: string } };
-      if (!response.ok || !payload.deleted) throw new Error(payload.error?.message ?? "删除失败");
+      if (!response.ok || !payload.deleted) throw new Error(payload.error?.message ?? "这条原始记录暂时无法移除。请稍后重试。");
       setRaws((current) => current.filter((item) => item.id !== raw.id));
       setSelectedRawId((current) => current === raw.id ? null : current);
-      setNotice("原始笔记已删除。");
+      setNotice("这条原始记录已移除。");
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "暂时无法删除原始笔记。");
+      setError(deleteError instanceof Error ? deleteError.message : "这条原始记录暂时无法移除。其他内容没有受到影响，请稍后重试。");
     }
   }
 
@@ -332,14 +339,15 @@ export default function Home() {
         body: JSON.stringify({ rawId }),
       });
       const payload = (await response.json()) as { draft?: OrganizeDraft; error?: { message?: string } };
-      if (!response.ok || !payload.draft) throw new Error(payload.error?.message ?? "整理失败");
+      if (!response.ok || !payload.draft) throw new Error(payload.error?.message ?? "整理稿暂时没有提出。原始记录仍然安全，请稍后重试。");
       setDraft(payload.draft);
-      setAiMessage("Draft 已生成。请逐项检查，再决定哪些内容进入知识库。");
-      setNotice("Draft 已生成，请检查并编辑后再确认保存。");
+      setAiMessage("整理稿已经提出。请逐项审阅，再决定是否收录。");
+      setNotice("整理稿已经提出。它仍是一份提议，审阅后再决定是否收录。");
+      play("success");
       openDraftTab(rawId);
     } catch (organizeError) {
       setDraftRawId(null);
-      setError(organizeError instanceof Error ? organizeError.message : "暂时无法生成 Draft。");
+      setError(organizeError instanceof Error ? organizeError.message : "整理稿暂时没有提出。原始记录仍然安全，请稍后重试。");
     } finally {
       setOrganizingRawId(null);
     }
@@ -357,7 +365,7 @@ export default function Home() {
         body: JSON.stringify({ rawId: draftRawId, draft }),
       });
       const payload = (await response.json()) as { knowledge?: Knowledge; created?: boolean; error?: { message?: string } };
-      if (!response.ok || !payload.knowledge) throw new Error(payload.error?.message ?? "确认保存失败");
+      if (!response.ok || !payload.knowledge) throw new Error(payload.error?.message ?? "整理稿暂时无法收录。它仍保留在当前页面，请稍后重试。");
 
       for (const suggestion of draft.relatedKnowledge) {
         if (!selectedRelationIds.includes(suggestion.knowledgeId)) continue;
@@ -367,23 +375,24 @@ export default function Home() {
           body: JSON.stringify({ sourceId: payload.knowledge.id, targetId: suggestion.knowledgeId, type: "related", reason: suggestion.reason }),
         });
         const relationPayload = (await relationResponse.json()) as { error?: { message?: string } };
-        if (!relationResponse.ok) throw new Error(relationPayload.error?.message ?? "关系保存失败");
+        if (!relationResponse.ok) throw new Error(relationPayload.error?.message ?? "知识页已收录，但交叉引用暂时没有保存。请稍后重试。");
       }
 
       if (draftRawId) closeTab(`draft:${draftRawId}`);
       if (payload.created) {
         setKnowledges((current) => [payload.knowledge!, ...current]);
-        setNotice("已确认并保存为 Knowledge。现在可以进入复习或查看关系。");
+        setNotice("整理稿已确认并收录为知识页。你可以继续修订，或查看它的交叉引用。");
         openKnowledgeTab(payload.knowledge);
       } else {
-        setNotice("这个 Raw 已经确认过，未创建重复 Knowledge。");
+        setNotice("这条原始记录已经收录，没有重复创建知识页。");
       }
       setDraft(null);
       setDraftRawId(null);
       setSelectedRelationIds([]);
       setGraphRefresh((current) => current + 1);
+      play("success");
     } catch (confirmError) {
-      setError(confirmError instanceof Error ? confirmError.message : "暂时无法保存 Knowledge。");
+      setError(confirmError instanceof Error ? confirmError.message : "整理稿暂时无法收录。原始记录仍然安全，请稍后重试。");
     } finally {
       setIsConfirming(false);
     }
@@ -397,15 +406,15 @@ export default function Home() {
         body: JSON.stringify(patch),
       });
       const payload = (await response.json()) as { knowledge?: Knowledge; error?: { message?: string } };
-      if (!response.ok || !payload.knowledge) throw new Error(payload.error?.message ?? "保存失败");
+      if (!response.ok || !payload.knowledge) throw new Error(payload.error?.message ?? "这次修订暂时没有保存。请稍后重试。");
       const updated = payload.knowledge;
       setKnowledges((current) => current.map((item) => item.id === id ? updated : item));
       if (patch.title) {
         setOpenTabs((current) => current.map((tab) => tab.id === `knowledge:${id}` ? { ...tab, label: getPreview(updated.title, 18) } : tab));
       }
-      setNotice("已保存修改。");
+      setNotice("修订已保存。");
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "暂时无法保存修改。");
+      setError(updateError instanceof Error ? updateError.message : "这次修订暂时没有保存。原有知识页没有改变，请稍后重试。");
     } finally {
       setEditingTitleId(null);
       setEditingField(null);
@@ -420,13 +429,13 @@ export default function Home() {
       if (!response.ok || !payload.knowledge) throw new Error("读取失败");
       openKnowledgeTab(payload.knowledge);
     } catch {
-      setError("暂时无法读取该 Knowledge 详情。");
+      setError("这张知识页暂时没有载入。已收录的内容仍然安全，请稍后重试。");
     }
   }
 
   async function handleAskAssistant(question: string) {
     if (!question.trim()) {
-      setAiMessage("先输入一个问题，再让 AI 回答。");
+      setAiMessage("先写下问题，我会依据你选择的材料提出看法。");
       return;
     }
 
@@ -452,10 +461,10 @@ export default function Home() {
         body: JSON.stringify(body),
       });
       const payload = (await response.json()) as { answer?: string; error?: { message?: string } };
-      if (!response.ok || typeof payload.answer !== "string") throw new Error(payload.error?.message ?? "暂时无法获取回答。");
+      if (!response.ok || typeof payload.answer !== "string") throw new Error(payload.error?.message ?? "编辑助理暂时无法回应。你的内容仍然安全，请稍后重试。");
       setAiMessage(payload.answer);
     } catch (askError) {
-      setAiMessage(askError instanceof Error ? askError.message : "暂时无法获取回答。");
+      setAiMessage(askError instanceof Error ? askError.message : "编辑助理暂时无法回应。你的内容仍然安全，请稍后重试。");
     } finally {
       setIsAsking(false);
     }
@@ -475,16 +484,16 @@ export default function Home() {
 
   function renderCaptureForm() {
     return <form className="capture-panel" onSubmit={handleSubmit}>
-      <div className="section-topline"><span>新建笔记</span><StatusPill>Raw 不可变</StatusPill></div>
-      <label htmlFor="raw-text">把还没有整理的内容放在这里</label>
-      <textarea id="raw-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={MAX_RAW_LENGTH} placeholder="课堂笔记、阅读摘录或待整理的问题" rows={8} />
-      <div className="capture-footer"><span>{text.length.toLocaleString()} / {MAX_RAW_LENGTH.toLocaleString()}</span><button className="button-dark" type="submit" disabled={isSaving}>{isSaving ? "保存中" : "保存笔记"}</button></div>
+      <div className="section-topline"><span>留下原话</span><StatusPill>原始记录不改写</StatusPill></div>
+      <label htmlFor="raw-text">把尚未整理的内容留在这里</label>
+      <textarea id="raw-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={MAX_RAW_LENGTH} placeholder="课堂笔记、阅读摘录，或一个还没有答案的问题" rows={8} />
+      <div className="capture-footer"><span>{text.length.toLocaleString()} / {MAX_RAW_LENGTH.toLocaleString()}</span><button className="button-dark" type="submit" data-sound="press" disabled={isSaving}>{isSaving ? "正在留下" : "留下原话"}</button></div>
     </form>;
   }
 
   function renderNewNote() {
     return <>
-      <header className="workspace-heading compact-heading"><div><p className="eyebrow">新建笔记</p><h1>把想法先留下。</h1><p>先保存原始笔记，再决定哪些内容值得进入知识库。</p></div><StatusPill tone="accent">目录 01</StatusPill></header>
+      <header className="workspace-heading compact-heading"><div><p className="eyebrow">私人知识编辑室</p><h1>先留下原话。</h1><p>现在不必完整。记录会保持原样，之后再由你决定如何理解和收录。</p></div><StatusPill tone="accent">案头 01</StatusPill></header>
       {renderCaptureForm()}
     </>;
   }
@@ -494,8 +503,8 @@ export default function Home() {
     const draftRaw = raws.find((raw) => raw.id === draftRawId);
 
     return <section className="review-surface" aria-labelledby="draft-title">
-      <div className="review-header"><div><p className="eyebrow">需要确认</p><h2 id="draft-title">Draft 编辑</h2><p>AI 已经提炼了一个版本。你的确认决定它是否进入 Knowledge。</p></div><StatusPill tone="warning">尚未写入</StatusPill></div>
-      <div className="source-trace"><span>来源 Raw</span><strong>{draftRaw ? getPreview(draftRaw.text, 88) : "当前来源"}</strong></div>
+      <div className="review-header"><div><p className="eyebrow">等待你的判断</p><h2 id="draft-title">审阅整理稿</h2><p>编辑助理提出了一种整理方式。这仍是一份提议，只有确认后才会成为知识页。</p></div><StatusPill tone="warning">尚未收录</StatusPill></div>
+      <div className="source-trace"><span>原始出处</span><strong>{draftRaw ? getPreview(draftRaw.text, 88) : "当前原始记录"}</strong></div>
       <div className="review-fields">
         <div className="field-block"><label htmlFor="draft-heading">标题</label><input id="draft-heading" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></div>
         <div className="field-block"><label htmlFor="draft-summary">摘要</label><textarea id="draft-summary" value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} rows={3} /></div>
@@ -506,29 +515,29 @@ export default function Home() {
         <div className="field-block"><label htmlFor="draft-concepts">概念，每行一项</label><textarea id="draft-concepts" value={draft.concepts.join("\n")} onChange={(event) => setDraft({ ...draft, concepts: linesToArray(event.target.value) })} rows={5} /></div>
         <div className="field-block"><label htmlFor="draft-keywords">关键词，每行一项</label><textarea id="draft-keywords" value={draft.keywords.join("\n")} onChange={(event) => setDraft({ ...draft, keywords: linesToArray(event.target.value) })} rows={5} /></div>
       </div>
-      {draft.relatedKnowledge.length > 0 ? <fieldset className="relation-suggestions"><legend>相关 Knowledge 建议</legend>{draft.relatedKnowledge.map((suggestion) => <label className="relation-option" key={suggestion.knowledgeId}><input type="checkbox" checked={selectedRelationIds.includes(suggestion.knowledgeId)} onChange={(event) => setSelectedRelationIds((current) => event.target.checked ? [...current, suggestion.knowledgeId] : current.filter((id) => id !== suggestion.knowledgeId))} /><span><strong>{suggestion.knowledgeId}</strong><small>{suggestion.reason}</small></span></label>)}</fieldset> : <p className="muted-note">当前没有可确认的 Knowledge 关联建议。关系可以在后续检查中单独处理。</p>}
-      <div className="review-actions"><button className="button-dark" type="button" onClick={() => void handleConfirm()} disabled={isConfirming}>{isConfirming ? "确认中" : "确认并保存 Knowledge"}</button><button className="button-secondary" type="button" onClick={() => { if (draftRawId) closeTab(`draft:${draftRawId}`); setDraft(null); setDraftRawId(null); setSelectedRelationIds([]); setNotice("Draft 已取消，尚未创建 Knowledge。"); }} disabled={isConfirming}>取消</button></div>
+      {draft.relatedKnowledge.length > 0 ? <fieldset className="relation-suggestions"><legend>可能的交叉引用</legend>{draft.relatedKnowledge.map((suggestion) => <label className="relation-option" key={suggestion.knowledgeId}><input type="checkbox" checked={selectedRelationIds.includes(suggestion.knowledgeId)} onChange={(event) => setSelectedRelationIds((current) => event.target.checked ? [...current, suggestion.knowledgeId] : current.filter((id) => id !== suggestion.knowledgeId))} /><span><strong>{suggestion.knowledgeId}</strong><small>{suggestion.reason}</small></span></label>)}</fieldset> : <p className="muted-note">目前没有足够依据提出交叉引用。收录后仍可继续检查和补充。</p>}
+      <div className="review-actions"><button className="button-dark" type="button" data-sound="press" onClick={() => void handleConfirm()} disabled={isConfirming}>{isConfirming ? "正在收录" : "确认并收录"}</button><button className="button-secondary" type="button" data-sound="select" onClick={() => { if (draftRawId) closeTab(`draft:${draftRawId}`); setDraft(null); setDraftRawId(null); setSelectedRelationIds([]); setNotice("整理稿暂未采用，没有创建知识页。"); }} disabled={isConfirming}>暂不采用</button></div>
     </section>;
   }
 
   function renderRawTab(rawId: string) {
     const raw = raws.find((item) => item.id === rawId);
-    if (!raw) return <EmptyState title="这条原始笔记已不存在" body="它可能已经被删除。" action={<button className="button-dark" type="button" onClick={() => navigate("new-note")}>新建笔记</button>} />;
+    if (!raw) return <EmptyState title="这条原始记录已不存在" body="它可能已经被移除。请从一段新原话重新开始。" action={<button className="button-dark" type="button" data-sound="press" onClick={() => navigate("new-note")}>留下原话</button>} />;
 
     const knowledge = knowledges.find((item) => item.rawId === raw.id);
 
     return <>
       <header className="workspace-heading compact-heading">
-        <div><p className="eyebrow">Raw · {formatDate(raw.createdAt)}</p><h1>原始笔记</h1><p>原始笔记不会被 AI 覆盖，整理和确认都从这里开始。</p></div>
-        {knowledge ? <StatusPill tone="accent">已入库</StatusPill> : <StatusPill>待整理</StatusPill>}
+        <div><p className="eyebrow">原始记录 · {formatDate(raw.createdAt)}</p><h1>忠实留下的原话</h1><p>编辑助理不会改写这里的内容。所有整理和修订都能回到这份出处。</p></div>
+        {knowledge ? <StatusPill tone="accent">已收录</StatusPill> : <StatusPill>等待整理</StatusPill>}
       </header>
       <section className="content-section">
         <div className="reading-content">{raw.text}</div>
         <div className="review-actions">
           {knowledge
-            ? <button className="button-dark" type="button" onClick={() => openKnowledgeTab(knowledge)}>打开知识 ↗</button>
-            : <button className="button-dark" type="button" onClick={() => void handleOrganize(raw.id)} disabled={organizingRawId !== null}>{organizingRawId === raw.id ? "整理中" : "AI 整理"}</button>}
-          {!knowledge ? <button className="button-secondary" type="button" onClick={() => void handleDeleteRaw(raw)}>删除</button> : null}
+            ? <button className="button-dark" type="button" data-sound="select" onClick={() => openKnowledgeTab(knowledge)}>打开知识页 ↗</button>
+            : <button className="button-dark" type="button" data-sound="press" onClick={() => void handleOrganize(raw.id)} disabled={organizingRawId !== null}>{organizingRawId === raw.id ? "正在整理" : "提出整理稿"}</button>}
+          {!knowledge ? <button className="button-secondary" type="button" data-sound="destructive" onClick={() => void handleDeleteRaw(raw)}>移除记录</button> : null}
         </div>
       </section>
     </>;
@@ -536,7 +545,7 @@ export default function Home() {
 
   function renderKnowledgeTab(knowledgeId: string) {
     const detail = knowledges.find((item) => item.id === knowledgeId);
-    if (!detail) return <EmptyState title="这条知识已不存在" body="它可能已经被删除。" action={<button className="button-dark" type="button" onClick={() => navigate("new-note")}>新建笔记</button>} />;
+    if (!detail) return <EmptyState title="这张知识页已不存在" body="它可能已经被移除。你仍可以从新的原始记录开始。" action={<button className="button-dark" type="button" data-sound="press" onClick={() => navigate("new-note")}>留下原话</button>} />;
 
     const sourceRaw = raws.find((raw) => raw.id === detail.rawId);
     const relatedEdges = graph.edges.filter((edge) => edge.source === detail.id || edge.target === detail.id);
@@ -560,13 +569,13 @@ export default function Home() {
     return <>
       <header className="workspace-heading compact-heading">
         <div>
-          <p className="eyebrow">Knowledge</p>
+          <p className="eyebrow">知识页</p>
           {isEditingTitle
             ? <input className="title-edit-input" value={titleDraft} autoFocus onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void handleUpdateKnowledge(detail.id, { title: titleDraft })} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleUpdateKnowledge(detail.id, { title: titleDraft }); } if (event.key === "Escape") setEditingTitleId(null); }} />
             : <h1 onContextMenu={(event) => { event.preventDefault(); setContextMenu({ type: "knowledge-title", knowledge: detail, x: event.clientX, y: event.clientY }); }}>{detail.title}</h1>}
-          <p>更新于 {formatDate(detail.updatedAt)}</p>
+          <p>修订于 {formatDate(detail.updatedAt)}</p>
         </div>
-        <StatusPill tone="accent">已确认</StatusPill>
+        <StatusPill tone="accent">已收录</StatusPill>
       </header>
       <section className="content-section">
         {editing === "summary"
@@ -578,14 +587,14 @@ export default function Home() {
         {editing === "concepts"
           ? <textarea className="inline-edit-field" value={fieldDraft} autoFocus rows={4} placeholder="每行一个概念" onChange={(event) => setFieldDraft(event.target.value)} onBlur={saveFieldEdit} onKeyDown={(event) => { if (event.key === "Escape") setEditingField(null); if (event.key === "Enter" && event.ctrlKey) saveFieldEdit(); }} />
           : <div className="tag-row editable-field" onClick={() => startFieldEdit("concepts")}>{detail.concepts.length > 0 ? detail.concepts.map((concept) => <span className="tag" key={concept}>{concept}</span>) : <span className="muted-note">点击添加概念</span>}</div>}
-        <div className="source-reference"><span className="item-kicker">SOURCE</span><strong>{sourceRaw ? getPreview(sourceRaw.text, 150) : "来源暂不可用"}</strong>{sourceRaw ? <button className="text-button" type="button" onClick={() => openRawTab(sourceRaw)}>回到原始笔记 ↗</button> : null}</div>
+        <div className="source-reference"><span className="item-kicker">原始出处</span><strong>{sourceRaw ? getPreview(sourceRaw.text, 150) : "原始出处暂时没有载入"}</strong>{sourceRaw ? <button className="text-button" type="button" data-sound="select" onClick={() => openRawTab(sourceRaw)}>查看原始记录 ↗</button> : null}</div>
         <div className="backlink-section">
-          <div className="section-heading-inline"><h3>相关关系</h3><button className="text-button" type="button" onClick={() => navigate("graph")}>查看图谱</button></div>
+          <div className="section-heading-inline"><h3>交叉引用</h3><button className="text-button" type="button" data-sound="select" onClick={() => navigate("graph")}>查看知识网络</button></div>
           {relatedEdges.length > 0 ? <div className="relation-list">{relatedEdges.map((edge) => {
             const otherId = edge.source === detail.id ? edge.target : edge.source;
             const other = knowledges.find((item) => item.id === otherId);
-            return <div className="relation-row" key={edge.id}>{other ? <button className="text-button" type="button" onClick={() => openKnowledgeTab(other)}>{other.title}</button> : <span>{otherId}</span>}<small>{edge.reason}</small></div>;
-          })}</div> : <p className="muted-note">这条知识还没有关联对象。</p>}
+            return <div className="relation-row" key={edge.id}>{other ? <button className="text-button" type="button" data-sound="select" onClick={() => openKnowledgeTab(other)}>{other.title}</button> : <span>{otherId}</span>}<small>{edge.reason}</small></div>;
+          })}</div> : <p className="muted-note">这张知识页还没有交叉引用。</p>}
         </div>
       </section>
     </>;
@@ -593,7 +602,7 @@ export default function Home() {
 
   function renderWikiTab(wikiPageId: string) {
     const page = wiki.pages.find((item) => item.id === wikiPageId);
-    if (!page) return <EmptyState title="这个 Wiki 页面已不存在" body="请从左侧目录重新选择。" />;
+    if (!page) return <EmptyState title="这页参考材料已不存在" body="请从左侧参考库重新选择。" />;
 
     const linked = wiki.links
       .filter((link) => link.sourceId === page.id || link.targetId === page.id)
@@ -602,17 +611,17 @@ export default function Home() {
       .filter((candidate): candidate is WikiPage => Boolean(candidate));
 
     return <>
-      <header className="workspace-heading compact-heading"><div><p className="eyebrow">Wiki · {wikiKindLabels[page.kind]}</p><h1>{page.title}</h1><p>{page.tags.join(" / ")}</p></div></header>
+      <header className="workspace-heading compact-heading"><div><p className="eyebrow">参考库 · {wikiKindLabels[page.kind]}</p><h1>{page.title}</h1><p>{page.tags.join(" / ")}</p></div></header>
       <section className="content-section">
         <p className="reading-summary">{page.summary}</p>
         <div className="reading-content">{page.content}</div>
-        {linked.length > 0 ? <div className="backlink-section"><h4>关联页面</h4><div className="tag-row">{linked.map((linkedPage) => <button className="tag tag-button" type="button" key={linkedPage.id} onClick={() => openWikiTab(linkedPage)}>{linkedPage.title}</button>)}</div></div> : null}
+        {linked.length > 0 ? <div className="backlink-section"><h4>相关参考</h4><div className="tag-row">{linked.map((linkedPage) => <button className="tag tag-button" type="button" data-sound="select" key={linkedPage.id} onClick={() => openWikiTab(linkedPage)}>{linkedPage.title}</button>)}</div></div> : null}
       </section>
     </>;
   }
 
   function renderGraph() {
-    return <><header className="workspace-heading compact-heading"><div><p className="eyebrow">关系图谱</p><h1>看见知识如何连接。</h1><p>图谱只使用真实 Knowledge 和 Relation，不生成装饰性节点。</p></div><button className="button-secondary" type="button" onClick={() => setGraphRefresh((current) => current + 1)}>刷新网络</button></header>{graph.nodes.length === 0 ? <EmptyState title="关系图谱还没有节点" body="确认 Knowledge 后，真实节点会从这里开始生长。" action={<button className="button-dark" type="button" onClick={() => navigate("new-note")}>新建笔记</button>} /> : <div className="graph-workspace"><section className="network-map" aria-label="Knowledge 节点地图">{graph.nodes.map((node, index) => <button className={`network-node node-position-${index % 6}`} type="button" key={node.id} onClick={() => void handleGraphNodeClick(node.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{node.title}</strong><small>打开知识页</small></button>)}</section><section className="edge-list"><div className="section-heading-inline"><h2>关系</h2><span className="section-count">{graph.edges.length}</span></div>{graph.edges.length === 0 ? <p className="muted-note">当前没有 related 关系。可以在 Draft 审阅时接受关系建议。</p> : graph.edges.map((edge) => <div className="edge-row" key={edge.id}><div><strong>{nodeTitleById.get(edge.source) ?? edge.source}</strong><span>↔</span><strong>{nodeTitleById.get(edge.target) ?? edge.target}</strong></div><p>{edge.reason}</p></div>)}</section></div>}</>;
+    return <><header className="workspace-heading compact-heading"><div><p className="eyebrow">知识网络</p><h1>看见理解如何相互回应。</h1><p>这里只呈现你已经确认的知识页与交叉引用，不添加装饰性内容。</p></div><button className="button-secondary" type="button" data-sound="press" onClick={() => setGraphRefresh((current) => current + 1)}>重新载入</button></header>{graph.nodes.length === 0 ? <EmptyState title="知识网络还没有内容" body="确认并收录第一张知识页后，它会从这里开始生长。" action={<button className="button-dark" type="button" data-sound="press" onClick={() => navigate("new-note")}>留下原话</button>} /> : <div className="graph-workspace"><section className="network-map" aria-label="知识页网络">{graph.nodes.map((node, index) => <button className={`network-node node-position-${index % 6}`} type="button" data-sound="select" key={node.id} onClick={() => void handleGraphNodeClick(node.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{node.title}</strong><small>打开知识页</small></button>)}</section><section className="edge-list"><div className="section-heading-inline"><h2>交叉引用</h2><span className="section-count">{graph.edges.length}</span></div>{graph.edges.length === 0 ? <p className="muted-note">目前还没有交叉引用。审阅整理稿时，你可以选择值得保留的联系。</p> : graph.edges.map((edge) => <div className="edge-row" key={edge.id}><div><strong>{nodeTitleById.get(edge.source) ?? edge.source}</strong><span>↔</span><strong>{nodeTitleById.get(edge.target) ?? edge.target}</strong></div><p>{edge.reason}</p></div>)}</section></div>}</>;
   }
 
   function renderMainContent() {
@@ -634,61 +643,62 @@ export default function Home() {
   if (showLanding) return <LandingPage onEnter={() => setShowLanding(false)} />;
 
   return <main className="app-shell">
-    <div className="mobile-topbar"><button className="mobile-menu-button" type="button" onClick={() => setMobileNavOpen((current) => !current)} aria-expanded={mobileNavOpen} aria-controls="workspace-nav">菜单</button><AppLogo /><button className="mobile-new-button" type="button" onClick={() => navigate("new-note")}>新建</button></div>
+    <div className="mobile-topbar"><button className="mobile-menu-button" type="button" data-sound="select" onClick={() => setMobileNavOpen((current) => !current)} aria-expanded={mobileNavOpen} aria-controls="workspace-nav">目录</button><AppLogo /><button className="mobile-new-button" type="button" data-sound="press" onClick={() => navigate("new-note")}>记录</button></div>
     <aside id="workspace-nav" className={`workspace-sidebar${mobileNavOpen ? " is-open" : ""}`}>
-      <div className="sidebar-top"><AppLogo /><button className="workspace-switcher" type="button"><span className="workspace-avatar">G</span><span><strong>个人学习空间</strong><small>本地工作区</small></span><span aria-hidden="true">⌄</span></button><button className="new-source-button" type="button" onClick={() => navigate("new-note")}><span aria-hidden="true">+</span> 新建笔记</button></div>
-      <nav className="file-tree" aria-label="数据目录">
+      <div className="sidebar-top"><AppLogo /><button className="workspace-switcher" type="button"><span className="workspace-avatar">G</span><span><strong>私人知识编辑室</strong><small>本地案头</small></span><span aria-hidden="true">⌄</span></button><button className="new-source-button" type="button" data-sound="press" onClick={() => navigate("new-note")}><span aria-hidden="true">+</span> 留下原话</button></div>
+      <nav className="file-tree" aria-label="编辑室目录">
         <div className="tree-section">
-          <button className="tree-section-header" type="button" onClick={() => setExpandedSections((current) => ({ ...current, raw: !current.raw }))} aria-expanded={expandedSections.raw}>
+          <button className="tree-section-header" type="button" data-sound="select" onClick={() => setExpandedSections((current) => ({ ...current, raw: !current.raw }))} aria-expanded={expandedSections.raw}>
             <span className={`tree-caret${expandedSections.raw ? " is-open" : ""}`} aria-hidden="true">▾</span>
-            <span>Raw</span>
+            <span>原始记录</span>
             <span className="tree-count">{raws.length}</span>
           </button>
-          {expandedSections.raw ? <div className="tree-items">{raws.length === 0 ? <p className="tree-empty">还没有笔记</p> : raws.map((raw) => <button className={`tree-item${activeTabId === `raw:${raw.id}` ? " is-selected" : ""}`} type="button" key={raw.id} onClick={() => openRawTab(raw)}>{getPreview(raw.text, 32)}</button>)}</div> : null}
+          {expandedSections.raw ? <div className="tree-items">{raws.length === 0 ? <p className="tree-empty">还没有留下原话</p> : raws.map((raw) => <button className={`tree-item${activeTabId === `raw:${raw.id}` ? " is-selected" : ""}`} type="button" data-sound="select" key={raw.id} onClick={() => openRawTab(raw)}>{getPreview(raw.text, 32)}</button>)}</div> : null}
         </div>
         <div className="tree-section">
-          <button className="tree-section-header" type="button" onClick={() => setExpandedSections((current) => ({ ...current, knowledge: !current.knowledge }))} aria-expanded={expandedSections.knowledge}>
+          <button className="tree-section-header" type="button" data-sound="select" onClick={() => setExpandedSections((current) => ({ ...current, knowledge: !current.knowledge }))} aria-expanded={expandedSections.knowledge}>
             <span className={`tree-caret${expandedSections.knowledge ? " is-open" : ""}`} aria-hidden="true">▾</span>
-            <span>Knowledge</span>
+            <span>知识页</span>
             <span className="tree-count">{knowledges.length}</span>
           </button>
-          {expandedSections.knowledge ? <div className="tree-items">{knowledges.length === 0 ? <p className="tree-empty">还没有知识</p> : knowledges.map((knowledge) => <button className={`tree-item${activeTabId === `knowledge:${knowledge.id}` ? " is-selected" : ""}`} type="button" key={knowledge.id} onClick={() => openKnowledgeTab(knowledge)}>{getPreview(knowledge.title, 32)}</button>)}</div> : null}
+          {expandedSections.knowledge ? <div className="tree-items">{knowledges.length === 0 ? <p className="tree-empty">还没有收录知识页</p> : knowledges.map((knowledge) => <button className={`tree-item${activeTabId === `knowledge:${knowledge.id}` ? " is-selected" : ""}`} type="button" data-sound="select" key={knowledge.id} onClick={() => openKnowledgeTab(knowledge)}>{getPreview(knowledge.title, 32)}</button>)}</div> : null}
         </div>
         <div className="tree-section">
-          <button className="tree-section-header" type="button" onClick={() => setExpandedSections((current) => ({ ...current, wiki: !current.wiki }))} aria-expanded={expandedSections.wiki}>
+          <button className="tree-section-header" type="button" data-sound="select" onClick={() => setExpandedSections((current) => ({ ...current, wiki: !current.wiki }))} aria-expanded={expandedSections.wiki}>
             <span className={`tree-caret${expandedSections.wiki ? " is-open" : ""}`} aria-hidden="true">▾</span>
-            <span>Wiki</span>
+            <span>参考库</span>
             <span className="tree-count">{wiki.pages.length}</span>
           </button>
-          {expandedSections.wiki ? <div className="tree-items">{wiki.pages.length === 0 ? <p className="tree-empty">还没有 Wiki 页面</p> : wiki.pages.map((page) => <button className={`tree-item${activeTabId === `wiki:${page.id}` ? " is-selected" : ""}`} type="button" key={page.id} style={{ paddingLeft: `${10 + getWikiDepth(page, wiki.pages) * 14}px` }} onClick={() => openWikiTab(page)}>{getPreview(page.title, 28)}</button>)}</div> : null}
+          {expandedSections.wiki ? <div className="tree-items">{wiki.pages.length === 0 ? <p className="tree-empty">参考库还是空的</p> : wiki.pages.map((page) => <button className={`tree-item${activeTabId === `wiki:${page.id}` ? " is-selected" : ""}`} type="button" data-sound="select" key={page.id} style={{ paddingLeft: `${10 + getWikiDepth(page, wiki.pages) * 14}px` }} onClick={() => openWikiTab(page)}>{getPreview(page.title, 28)}</button>)}</div> : null}
         </div>
-        <div className="tree-tools"><button className={`tree-tool-item${activeTabId === "view:graph" ? " is-active" : ""}`} type="button" onClick={() => navigate("graph")}>{viewMeta.graph.label}</button></div>
+        <div className="tree-tools"><button className={`tree-tool-item${activeTabId === "view:graph" ? " is-active" : ""}`} type="button" data-sound="select" onClick={() => navigate("graph")}>{viewMeta.graph.label}</button></div>
       </nav>
-      <div className="sidebar-bottom"><div className="data-status"><span className="status-dot" aria-hidden="true" /><span><strong>本地数据正常</strong><small>Raw 与 Knowledge 已连接</small></span></div><span className="sidebar-version">AI Notes</span></div>
+      <div className="sidebar-bottom"><SoundToggle className="sound-toggle-sidebar" /><div className="data-status"><span className="status-dot" aria-hidden="true" /><span><strong>本地记录可用</strong><small>原始记录与知识页可追溯</small></span></div><span className="sidebar-version">AI Notes</span></div>
     </aside>
     <section className="workspace-main">
-      <div className="workspace-topbar"><div className="breadcrumb"><span>AI Notes</span><span aria-hidden="true">/</span><strong>{activeTab.label}</strong></div><div className="topbar-actions"><span className="topbar-status"><span className="status-dot" aria-hidden="true" />本地工作区</span><button className="avatar-button" type="button" aria-label="打开个人菜单">G</button></div></div>
-      <div className="tab-bar" role="tablist">{openTabs.map((tab) => <div key={tab.id} className={`tab-chip${activeTabId === tab.id ? " is-active" : ""}`} role="tab" aria-selected={activeTabId === tab.id} onClick={() => setActiveTabId(tab.id)}><span>{tab.label}</span><button type="button" aria-label="关闭标签" onClick={(event) => { event.stopPropagation(); closeTab(tab.id); }}>×</button></div>)}</div>
+      <div className="workspace-topbar"><div className="breadcrumb"><span>AI Notes</span><span aria-hidden="true">/</span><strong>{activeTab.label}</strong></div><div className="topbar-actions"><SoundToggle className="sound-toggle-desktop" /><span className="topbar-status"><span className="status-dot" aria-hidden="true" />本地案头</span><button className="avatar-button" type="button" aria-label="打开个人菜单">G</button></div></div>
+      <div className="tab-bar" role="tablist">{openTabs.map((tab) => <div key={tab.id} className={`tab-chip${activeTabId === tab.id ? " is-active" : ""}`} role="tab" tabIndex={activeTabId === tab.id ? 0 : -1} data-sound="select" aria-selected={activeTabId === tab.id} onClick={() => setActiveTabId(tab.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActiveTabId(tab.id); } }}><span>{tab.label}</span><button type="button" data-sound="select" aria-label="关闭标签" onClick={(event) => { event.stopPropagation(); closeTab(tab.id); }}>×</button></div>)}</div>
       <div className="workspace-content"><div className="main-column">{error ? <div className="feedback-banner error-message" role="alert">{error}</div> : null}{notice ? <div className="feedback-banner notice-message" aria-live="polite">{notice}</div> : null}{renderMainContent()}</div></div>
     </section>
-    <aside className="ai-rail" aria-label="上下文 AI 面板">
-      <div className="ai-rail-header"><div><span className="item-kicker">CONTEXT AI</span><h2>上下文 AI</h2></div><span className="ai-signal">辅助</span></div>
+    <aside className="ai-rail" aria-label="编辑助理面板">
+      <div className="ai-rail-header"><div><span className="item-kicker">编辑建议</span><h2>编辑助理</h2></div><span className="ai-signal">只提议</span></div>
       <div className={`ai-result${aiMessage ? " has-result" : ""}`} aria-live="polite">
-        <div className="ai-result-label"><span>AI 回答</span></div>
-        <p>{isAsking ? "思考中…" : aiMessage || "在下方提问，输入 @ 可以引用一条已有的笔记作为上下文。"}</p>
-        {aiMessage && !isAsking ? <div className="ai-result-actions"><button className="text-button" type="button" onClick={() => setAiMessage("")}>清除</button></div> : null}
+        <div className="ai-result-label"><span>助理回复</span></div>
+        <p>{isAsking ? "正在查阅你选择的材料…" : aiMessage || "提出一个问题，或输入 @ 引用一份原始记录、知识页或参考材料。"}</p>
+        {aiMessage && !isAsking ? <div className="ai-result-actions"><button className="text-button" type="button" data-sound="select" onClick={() => setAiMessage("")}>收起回复</button></div> : null}
       </div>
       <form className="ai-ask" onSubmit={(event) => { event.preventDefault(); void handleAskAssistant(aiQuestion); }}>
-        <label htmlFor="ai-question">问笔记</label>
+        <label htmlFor="ai-question">向编辑助理提问</label>
         <div className="ai-input-wrap">
-          {mentionCandidates.length > 0 ? <div className="mention-popup" role="listbox">{mentionCandidates.map((item) => <button type="button" key={`${item.kind}:${item.id}`} className="mention-row" onClick={() => pickMention(item)}><span className="mention-kind">{item.kind === "raw" ? "Raw" : item.kind === "knowledge" ? "Knowledge" : "Wiki"}</span><span>{item.label}</span></button>)}</div> : null}
-          <div className="ai-input-row"><input id="ai-question" value={aiQuestion} onChange={(event) => handleQuestionChange(event.target.value)} placeholder="输入问题，@ 可以引用已有笔记" disabled={isAsking} /><button type="submit" aria-label="提交问题" disabled={isAsking}>↗</button></div>
+          {mentionCandidates.length > 0 ? <div className="mention-popup" role="listbox">{mentionCandidates.map((item) => <button type="button" key={`${item.kind}:${item.id}`} className="mention-row" data-sound="select" onClick={() => pickMention(item)}><span className="mention-kind">{item.kind === "raw" ? "原始记录" : item.kind === "knowledge" ? "知识页" : "参考库"}</span><span>{item.label}</span></button>)}</div> : null}
+          <div className="ai-input-row"><input id="ai-question" value={aiQuestion} onChange={(event) => handleQuestionChange(event.target.value)} placeholder="写下问题，@ 可以引用已有材料" disabled={isAsking} /><button type="submit" data-sound="press" aria-label="提交问题" disabled={isAsking}>↗</button></div>
         </div>
       </form>
-      <div className="ai-trace"><span className="status-dot" aria-hidden="true" />AI 回答基于当前真实内容，不会自动写入知识库</div>
+      <div className="ai-trace"><span className="status-dot" aria-hidden="true" />回复只依据你选择的材料，也不会自动写入知识页</div>
     </aside>
-    <nav className="mobile-bottom-nav" aria-label="移动端导航">{directNavViews.map((view) => <button className={activeTab.kind === "view" && activeTab.viewKey === view ? "is-active" : ""} type="button" key={view} onClick={() => navigate(view)}><span>{viewMeta[view].shortLabel}</span></button>)}<button type="button" onClick={() => setMobileNavOpen(true)}><span>更多</span></button></nav>
-    {contextMenu?.type === "raw" ? <div className="raw-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}><div className="context-menu-label">原始笔记操作</div><div className="context-menu-title">{getPreview(contextMenu.raw.text, 62)}</div><button type="button" onClick={() => void handleDeleteRaw(contextMenu.raw)}>删除原始笔记</button></div> : null}
-    {contextMenu?.type === "knowledge-title" ? <div className="raw-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}><div className="context-menu-label">标题操作</div><div className="context-menu-title">{getPreview(contextMenu.knowledge.title, 62)}</div><button type="button" onClick={() => { setEditingTitleId(contextMenu.knowledge.id); setTitleDraft(contextMenu.knowledge.title); setContextMenu(null); }}>重命名</button></div> : null}
+    <nav className="mobile-bottom-nav" aria-label="移动端导航">{directNavViews.map((view) => <button className={activeTab.kind === "view" && activeTab.viewKey === view ? "is-active" : ""} type="button" data-sound="select" key={view} onClick={() => navigate(view)}><span>{viewMeta[view].shortLabel}</span></button>)}<button type="button" data-sound="select" onClick={() => setMobileNavOpen(true)}><span>更多</span></button></nav>
+    <SoundPreferencePrompt />
+    {contextMenu?.type === "raw" ? <div className="raw-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}><div className="context-menu-label">原始记录</div><div className="context-menu-title">{getPreview(contextMenu.raw.text, 62)}</div><button type="button" data-sound="destructive" onClick={() => void handleDeleteRaw(contextMenu.raw)}>移除这条记录</button></div> : null}
+    {contextMenu?.type === "knowledge-title" ? <div className="raw-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}><div className="context-menu-label">修订标题</div><div className="context-menu-title">{getPreview(contextMenu.knowledge.title, 62)}</div><button type="button" data-sound="press" onClick={() => { setEditingTitleId(contextMenu.knowledge.id); setTitleDraft(contextMenu.knowledge.title); setContextMenu(null); }}>修改标题</button></div> : null}
   </main>;
 }
