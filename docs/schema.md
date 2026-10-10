@@ -20,7 +20,11 @@ Neon PostgreSQL
 
 **中文注解 · 为什么归属过滤必须在服务层**：路由只负责 HTTP 语义，MCP / 内置 Agent / 网页前端将来都调用同一套服务函数。把 `user_id` 条件写在服务层，任何新入口都自动继承隔离规则；写在路由里就会漏。
 
-`NOT IMPLEMENTED`：MCP server（本地 stdio / 远程 HTTP）、内置 Agent、自动写入白名单策略引擎、变更提议（proposals）流程、审计写入。
+`NOT IMPLEMENTED`：MCP server（本地 stdio / 远程 HTTP）、内置 Agent、自动写入白名单策略引擎、变更提议（proposals）流程。
+
+**已实现的一处审计写入**：修改原始记录正文（`PATCH /api/raw/:id`）会在同一事务里写一条 `audit_log`（`operation = 'raw.update'`，`detail = { before, after, version }`）作为修订记录。除此之外没有其他审计写入。
+
+**jsonb 编码约定**：`concepts` / `key_points` / `keywords` / `detail` 等 jsonb 列，写入时**直接传数组或对象**，不要再手动 `JSON.stringify`——Drizzle 的 `jsonb` 列在 `mapToDriverValue` 里已经 stringify 一次，手动再包一层会让库里存下 jsonb 字符串（读的时候被 Drizzle 透明还原，所以不会报错，但 SQL 层 `->`、`?`、GIN 索引全都失效）。
 
 ---
 
@@ -80,7 +84,7 @@ All business tables carry `user_id text NOT NULL`. 所有时间列为 `timestamp
 ### 其余表
 
 - `proposals`（提议）：字段齐全，`kind` / `status` / `risk_level` / `origin` 均有 CHECK，`target_note_id → notes.id ON DELETE RESTRICT`。`NOT IMPLEMENTED`：流程与 API。
-- `audit_log`：**没有任何外键**，因此任何级联都影响不到它。`NOT IMPLEMENTED`：写入。
+- `audit_log`：**没有任何外键**，因此任何级联都影响不到它。当前唯一写入方是 `PATCH /api/raw/:id`（原始记录修改的修订记录，见 §1 与 §4）。
 - `idempotency_keys`：`PRIMARY KEY (user_id, key)`。`NOT IMPLEMENTED`：使用。
 - `agent_tokens`：远程 MCP 凭据（`token_hash` 唯一）。`NOT IMPLEMENTED`：签发与校验。
 
@@ -94,7 +98,7 @@ All business tables carry `user_id text NOT NULL`. 所有时间列为 `timestamp
 
 - 演示期为**隐式单用户**：`lib/auth/context.ts` 的 `getUserContext()` 从服务端环境变量 `DEFAULT_OWNER_ID` 取用户标识（默认 `demo-user`）。**绝不从请求参数取身份。**
 - 服务层**所有**查询、更新、删除都带 `user_id` 条件；新建记录的 `user_id` 由服务端上下文赋值。
-- `lib/auth/authorize.ts` 提供 `assertOwner()` 与 `requireUserActor()`（`NOT IMPLEMENTED`：尚未被调用——当前无 `user_edit` 类接口需要拦截）。
+- `lib/auth/authorize.ts` 提供 `assertOwner()` 与 `requireUserActor()`。`requireUserActor()` 已由 `PATCH /api/raw/:id` 调用：非 `user` 主体（将来的 Agent）会被拒，返回 `403 USE_PROPOSAL_FLOW`。`assertOwner()` 仍未单独调用——归属过滤目前由服务层的 `user_id` 条件承担。
 - `ACTOR_TYPES = user | agent | system`，但当前只有 `user` 会实际出现。
 
 **中文注解**：将来接入真实登录时，只需替换 `getUserContext()` 的实现，业务层不动。
@@ -110,6 +114,7 @@ All business tables carry `user_id text NOT NULL`. 所有时间列为 `timestamp
 | `GET /api/raw` | — | `200 { raws: Raw[] }` | 排除已归档 |
 | `POST /api/raw` | `{ text }` | `201 { raw }` | 空 / 超长 → 400 |
 | `DELETE /api/raw` | `{ rawId }` | `200 { deleted, archived: true }` | **归档**，非物理删除；被知识页引用 → 409 |
+| `PATCH /api/raw/:id` | `{ text }` | `200 { raw, changed }` | `user_edit`：只有 `user` 主体可用（Agent → `403 USE_PROPOSAL_FLOW`）；每次改动写一条 `audit_log` 修订记录；正文相同 → `changed: false` 且不写库；不存在 / 已归档 / 非本人 → `404 RAW_NOT_FOUND` |
 | `GET /api/knowledge` | — | `200 { knowledges: Knowledge[] }` | 排除归档 / 墓碑 |
 | `POST /api/knowledge` | `{ rawId, draft, origin? }` | `201 { knowledge, created: true }` | 幂等；已存在 → `200 created:false`；`origin` 默认 `user` |
 | `GET /api/knowledge/:id` | — | `200 { knowledge, raw }` | `raw` 可能为 `null` |
@@ -129,7 +134,7 @@ All business tables carry `user_id text NOT NULL`. 所有时间列为 `timestamp
 
 ## 5. Error Codes
 
-`INVALID_JSON` · `INVALID_BODY` · `TEXT_REQUIRED` · `TEXT_EMPTY` · `TEXT_TOO_LONG` · `RAW_ID_REQUIRED` · `RAW_NOT_FOUND` · `RAW_REFERENCED_BY_KNOWLEDGE` · `INVALID_DRAFT` · `INVALID_ORIGIN` · `INVALID_TITLE` / `INVALID_SUMMARY` / `INVALID_CONTENT` / `INVALID_KEY_POINTS` / `INVALID_CONCEPTS` / `INVALID_KEYWORDS` · `EMPTY_PATCH` · `INVALID_VERSION` · `VERSION_CONFLICT` · `KNOWLEDGE_NOT_FOUND` · `SOURCE_ID_REQUIRED` / `TARGET_ID_REQUIRED` · `SELF_RELATION` · `RELATION_TYPE_INVALID` · `RELATION_REASON_REQUIRED` · `RELATION_NOT_FOUND` · `*_STORAGE_READ_FAILED` / `*_STORAGE_WRITE_FAILED` / `*_STORAGE_DELETE_FAILED` · `DEEPSEEK_CONFIG_MISSING` / `DEEPSEEK_TIMEOUT` / `DEEPSEEK_UPSTREAM_ERROR`
+`INVALID_JSON` · `INVALID_BODY` · `TEXT_REQUIRED` · `TEXT_EMPTY` · `TEXT_TOO_LONG` · `RAW_ID_REQUIRED` · `RAW_NOT_FOUND` · `RAW_REFERENCED_BY_KNOWLEDGE` · `USE_PROPOSAL_FLOW` · `INVALID_DRAFT` · `INVALID_ORIGIN` · `INVALID_TITLE` / `INVALID_SUMMARY` / `INVALID_CONTENT` / `INVALID_KEY_POINTS` / `INVALID_CONCEPTS` / `INVALID_KEYWORDS` · `EMPTY_PATCH` · `INVALID_VERSION` · `VERSION_CONFLICT` · `KNOWLEDGE_NOT_FOUND` · `SOURCE_ID_REQUIRED` / `TARGET_ID_REQUIRED` · `SELF_RELATION` · `RELATION_TYPE_INVALID` · `RELATION_REASON_REQUIRED` · `RELATION_NOT_FOUND` · `*_STORAGE_READ_FAILED` / `*_STORAGE_WRITE_FAILED` / `*_STORAGE_DELETE_FAILED` · `DEEPSEEK_CONFIG_MISSING` / `DEEPSEEK_TIMEOUT` / `DEEPSEEK_UPSTREAM_ERROR`
 
 **中文注解**：错误消息面向用户（说明发生了什么、数据是否安全、下一步做什么），不暴露数据库原文、堆栈或凭据。
 

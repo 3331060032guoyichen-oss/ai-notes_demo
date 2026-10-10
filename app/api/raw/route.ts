@@ -5,9 +5,8 @@ import {
   archiveSource,
   createSource,
   listSources,
+  MAX_RAW_TEXT_LENGTH,
 } from "../../../lib/services/sources";
-
-const MAX_RAW_LENGTH = 50_000;
 
 export const runtime = "nodejs";
 
@@ -52,9 +51,9 @@ export async function POST(request: Request) {
     return errorResponse("先写下一段原话，再尝试保存。", 400, "TEXT_EMPTY");
   }
 
-  if (body.text.length > MAX_RAW_LENGTH) {
+  if (body.text.length > MAX_RAW_TEXT_LENGTH) {
     return errorResponse(
-      `这段原话不能超过 ${MAX_RAW_LENGTH} 个字符，请删减后再保存。`,
+      `这段原话不能超过 ${MAX_RAW_TEXT_LENGTH} 个字符，请删减后再保存。`,
       400,
       "TEXT_TOO_LONG",
     );

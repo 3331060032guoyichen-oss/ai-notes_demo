@@ -124,6 +124,66 @@ try {
   const revisions = await q(`select count(*)::int as n from note_revisions where note_id = $1`, [noteA]);
   check("修订历史随每次写入增长（3 条）", revisions[0].n === 3, `实际 ${revisions[0].n}`);
 
+  const jsonbShapes = await q(
+    `select jsonb_typeof(concepts) as concepts, jsonb_typeof(key_points) as key_points
+       from notes where id = $1`,
+    [noteA],
+  );
+  check(
+    "jsonb 列存的是真数组（不是被二次编码的字符串）",
+    jsonbShapes[0].concepts === "array" && jsonbShapes[0].key_points === "array",
+    JSON.stringify(jsonbShapes[0]),
+  );
+
+  // ---- raw 修改（user_edit：用户可改，且必须留修订记录）------------------
+  const editedText = "回归测试原话 B（已修改）";
+  const rawEdit = await PATCH(`/api/raw/${rawBId}`, { text: editedText });
+  check("PATCH /api/raw/:id 修改 200", rawEdit.status === 200 && rawEdit.body?.changed === true);
+  check(
+    "PATCH /api/raw/:id 响应形状不变",
+    JSON.stringify(Object.keys(rawEdit.body?.raw ?? {}).sort()) === '["createdAt","id","text"]',
+  );
+
+  const rawAfterEdit = await GET("/api/raw");
+  check(
+    "PATCH 后列表读到新正文",
+    (rawAfterEdit.body?.raws ?? []).some((r) => r.id === rawBId && r.text === editedText),
+  );
+
+  const detailAfterEdit = await GET(`/api/knowledge/${noteB}`);
+  check("PATCH 后知识页出处同步为新正文", detailAfterEdit.body?.raw?.text === editedText);
+
+  const rawNoop = await PATCH(`/api/raw/${rawBId}`, { text: editedText });
+  check("PATCH 相同内容 → 200 且标记未改动", rawNoop.status === 200 && rawNoop.body?.changed === false);
+
+  const rawEmpty = await PATCH(`/api/raw/${rawBId}`, { text: "   " });
+  const rawLong = await PATCH(`/api/raw/${rawBId}`, { text: "x".repeat(50_001) });
+  const rawNoText = await PATCH(`/api/raw/${rawBId}`, {});
+  const rawMissing = await PATCH("/api/raw/raw_does_not_exist", { text: "x" });
+  check("PATCH 空文本 400", rawEmpty.status === 400 && rawEmpty.body?.error?.code === "TEXT_EMPTY");
+  check("PATCH 超长 400", rawLong.status === 400 && rawLong.body?.error?.code === "TEXT_TOO_LONG");
+  check("PATCH 缺 text 400", rawNoText.status === 400 && rawNoText.body?.error?.code === "TEXT_REQUIRED");
+  check(
+    "PATCH 不存在的 raw → 404",
+    rawMissing.status === 404 && rawMissing.body?.error?.code === "RAW_NOT_FOUND",
+  );
+
+  const rawRevisions = await q(
+    `select count(*)::int as n,
+            max(detail->>'before') as before,
+            max(detail->>'after') as after
+       from audit_log
+      where operation = 'raw.update' and target_id = $1`,
+    [rawBId],
+  );
+  check(
+    "PATCH 留下修订记录（含改前原文）",
+    rawRevisions[0].n === 1 &&
+      rawRevisions[0].before === "回归测试原话 B" &&
+      rawRevisions[0].after === editedText,
+    JSON.stringify(rawRevisions[0]),
+  );
+
   // ---- links ------------------------------------------------------------
   const r1 = await POST("/api/relations", { sourceId: noteA, targetId: noteB, type: "related", reason: "回归理由" });
   const linkId = r1.body?.relation?.id;
@@ -206,16 +266,23 @@ try {
   const isoArchive = await DELETE("/api/raw", { rawId: OR });
   const isoPromote = await POST("/api/knowledge", { rawId: OR, draft: draft("越权") });
   const isoRel = await POST("/api/relations", { sourceId: ON, targetId: noteA, type: "related", reason: "越权" });
+  const isoRawPatch = await PATCH(`/api/raw/${OR}`, { text: "越权修改" });
   check("隔离：详情 404", isoDetail.status === 404);
   check("隔离：PATCH 他人笔记 404", isoPatch.status === 404);
   check("隔离：归档他人原话 404", isoArchive.status === 404);
   check("隔离：提升他人原话 404", isoPromote.status === 404);
+  check(
+    "隔离：修改他人原话 404",
+    isoRawPatch.status === 404 && isoRawPatch.body?.error?.code === "RAW_NOT_FOUND",
+  );
   check("隔离：用他人笔记建关系 404", isoRel.status === 404);
 
   const untouched = (
     await q(`select title, (select count(*)::int from notes where user_id = $1) as n from notes where id = $2`, [OTHER_USER, ON])
   )[0];
+  const otherRaw = (await q(`select text from raw_notes where id = $1`, [OR]))[0];
   check("隔离：他人数据未被改动", untouched?.title === "他人知识页" && untouched?.n === 1);
+  check("隔离：他人原话未被改动", otherRaw?.text === "他人原话");
 } catch (error) {
   check("测试执行未抛异常", false, error.message);
 } finally {
@@ -226,8 +293,10 @@ try {
     await q(`delete from notes where id = $1`, [id]).catch(() => {});
   }
   for (const id of created.raws.filter(Boolean)) {
+    await q(`delete from audit_log where target_id = $1`, [id]).catch(() => {});
     await q(`delete from raw_notes where id = $1`, [id]).catch(() => {});
   }
+  await q(`delete from audit_log where target_id = $1`, [OR]).catch(() => {});
   await q(`delete from links where id = $1`, [LINK_OTHER]).catch(() => {});
   await q(`delete from notes where id = $1`, [ON]).catch(() => {});
   await q(`delete from raw_notes where id = $1`, [OR]).catch(() => {});
@@ -237,9 +306,14 @@ try {
        (select count(*)::int from raw_notes) as raws,
        (select count(*)::int from notes) as notes,
        (select count(*)::int from links) as links,
-       (select count(*)::int from note_revisions) as revisions`,
+       (select count(*)::int from note_revisions) as revisions,
+       (select count(*)::int from audit_log) as audit`,
   );
-  check("清理后库内为 0", JSON.stringify(left[0]) === '{"raws":0,"notes":0,"links":0,"revisions":0}', JSON.stringify(left[0]));
+  check(
+    "清理后库内为 0",
+    JSON.stringify(left[0]) === '{"raws":0,"notes":0,"links":0,"revisions":0,"audit":0}',
+    JSON.stringify(left[0]),
+  );
 
   for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.label}${r.detail ? `  → ${r.detail}` : ""}`);
   const failed = results.filter((r) => !r.ok);

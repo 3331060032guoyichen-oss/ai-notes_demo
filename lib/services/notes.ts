@@ -120,9 +120,12 @@ export async function promoteFromSource(
         title: input.title,
         summary: input.summary,
         content: input.content,
-        keyPoints: JSON.stringify(input.keyPoints),
-        concepts: JSON.stringify(input.concepts),
-        keywords: JSON.stringify(input.keywords),
+        // 注意：Drizzle 的 jsonb 列在 mapToDriverValue 里已经 JSON.stringify 一次，
+        // 这里必须直接传数组。若再手动 stringify，库里存下的会是 jsonb 字符串而不是数组，
+        // SQL 层（`concepts ? 'x'`、jsonb_array_elements、GIN 索引）就查不动了。
+        keyPoints: input.keyPoints,
+        concepts: input.concepts,
+        keywords: input.keywords,
         origin: input.origin,
       })
       .returning();

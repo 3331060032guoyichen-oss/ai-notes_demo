@@ -141,6 +141,7 @@ type Tab =
 
 - 文件树导航 + 标签页工作台（Raw / Knowledge 各自成树，点击开标签）
 - 新建笔记 → AI 整理 → 审阅编辑 → 确认入库（Raw → Knowledge）
+- 原始记录可编辑：`PATCH /api/raw/:id`（服务端只允许 `user` 主体，每次改动留一条 `audit_log` 修订记录）——**接口已就绪，界面上的编辑入口尚未接**（当前界面只能新建 / 查看 / 移除原始记录）
 - Knowledge 内联编辑：标题右键改名、摘要/正文/概念点击编辑（`PATCH /api/knowledge/:id`）
 - AI 问答面板：输入 `@` 弹出候选列表，可把某条 Raw/Knowledge 作为提问上下文
 - 关系图谱（节点卡片 + 边列表，CSS grid，非力导向）
@@ -360,6 +361,23 @@ type Tab =
 - ⚠️ **发现：项目已开通 Neon Auth**，其 9 张表位于独立的 `neon_auth` schema（`tables_per_schema=… neon_auth:9 public:11`），与我们的 `public` 表互不干扰；本轮不使用，但需知晓它占用少量存储。
 - **注意**：`0000` 建的外键是 `cascade`，由 `0001` 改成 `restrict`——**必须按序全部执行，只跑 `0000` 会留下危险中间态**。
 
+### 2026-10-11：原始记录可编辑（补齐"未完成 A"）+ jsonb 编码修复
+
+**背景**：此前记录的决策「Raw 允许用户修改」只有决策、没有代码——`app/api/raw` 只有 GET / POST / DELETE，用户改不了原文。
+
+**已实现**：`PATCH /api/raw/:id`（`{ text }`）+ 服务层 `updateSource()`。
+
+- `user_edit` 语义：用户在界面上改自己的原话，不需要提议、不需要自我审批；正文相同视为无改动（`changed: false`，不写库）。
+- 只有 `user` 主体可调用：`requireUserActor()` 是这次第一次真正被调用，Agent 主体 → `403 USE_PROPOSAL_FLOW`（不允许借普通用户编辑接口绕过提议机制）。
+- 修订记录写在 **`audit_log`**（`operation='raw.update'`、`detail={before,after,version}`），与正文更新同一事务；`raw_notes.version` 每次修改 +1。**没有新增表、没有新增迁移**。若将来要做"逐版本对比 / 回滚到某版"的界面，再单开 `raw_revisions` 表并追加迁移。
+- 长度上限抽成 `MAX_RAW_TEXT_LENGTH`（`lib/services/sources.ts`），POST 与 PATCH 共用，避免两处各写一个数字。
+
+**顺带修掉一个潜在数据缺陷（jsonb 二次编码）**：Drizzle 的 jsonb 列在 `mapToDriverValue` 里已经 `JSON.stringify` 一次，而服务层又手动 stringify 了一次，导致 `notes.concepts` / `key_points` / `keywords`（以及 `note_revisions` 的副本）在库里实际是 **jsonb 字符串**而不是数组。读路径因为 Drizzle 的 `mapFromDriverValue` 会 `JSON.parse` 而看不出问题，但 SQL 层（`concepts ? 'x'`、`jsonb_array_elements`、GIN 索引）全都失效——这会直接卡住后续"按概念检索 / Agent 用 SQL 找相关笔记"。已改为直接传数组 / 对象；dev 库当时是 0 行，**没有历史数据需要修**。
+
+**测试**：`scripts/regression.mjs` 扩到 60 项断言，新增 raw 修改的成功 / 固定形状 / 空文本 / 超长 / 缺字段 / 不存在 / 相同内容不写修订、修订记录含改前原文、知识页出处跟随新正文、跨用户改他人原话 404、jsonb 列类型是真数组，并在清理时把 `audit_log` 一并清零。实测 60/60 通过（本地 dev + 生产构建模式）。
+
+**未接的部分**：界面还没有"编辑原话"的入口（接口已可用）。
+
 ### 2026-10-11：线上掉线复盘 —— 部署的代码版本与工作副本
 
 **现象**：线上站点读取永远返回空、写入全部 500（`RAW_STORAGE_WRITE_FAILED`），而本地一切正常。
@@ -376,7 +394,7 @@ type Tab =
 
 ## 改动边界
 
-- **Raw 用户可改、AI 不可改**：用户可以通过 `PATCH /api/raw` 修改，且必须留下修订记录；AI 永远不能改写 Raw 的正文。详见上文「决策记录」。
+- **Raw 用户可改、AI 不可改**：用户可以通过 `PATCH /api/raw/:id` 直接修改（不需要提议），每次修改都在同一事务里写一条 `audit_log` 修订记录（含改前 / 改后原文）；Agent 主体调用会被 `requireUserActor()` 拒绝（`403 USE_PROPOSAL_FLOW`），永远不能改写 Raw 的正文。详见上文「决策记录」。
 - **AI 不自动写入**：AI 只生成草稿或回答，落库必须经过用户确认。
 - **右栏是上下文面板**：入链 / 出链 / 未链接提及 / 编辑助理四块，跟随当前标签。不要把它退回成全局聊天框，也不要为 AI 单独做一套视觉语言。
 - **不要再重建参考库 / Wiki 层**：它已按 2026-10-10 决策整层移除，`data/*.json` 三个文件都是运行时数据（不进 Git，不要提交）。将来若要做"Wiki 承载四类节点"，以新形态重新设计，不要恢复旧结构。
