@@ -24,7 +24,11 @@ AI Notes：面向大学生的生长式 AI 知识系统（校赛 Demo）。
 
 远端分支已用 `git ls-remote` 核实，只有 `main`、`develop-guozechen`、`feature/raw-storage` 三个。若本地还残留 `origin/develop` 引用，那是过期的远程跟踪引用，`git fetch --prune` 清掉即可。
 
-⚠️ **先确认这一条再动手**：上表描述的是**远端仓库**。本机的工作副本**不一定有 `.git`** —— 例如解压出来的副本（`ai-notes_demo-main`）就不是 git 仓库，在那里跑 `git status` 会直接报 `not a git repository`。动手前先执行一次 `git rev-parse --is-inside-work-tree` 确认当前目录的状态；不是仓库就不要用任何 git 命令判断改动或回滚。
+⚠️ **先确认这一条再动手**：上表描述的是**远端仓库**，本机的工作副本可能和它不一致。动手前先执行一次 `git rev-parse --is-inside-work-tree` 确认当前目录的状态；不是仓库就不要用任何 git 命令判断改动或回滚。
+
+**本机工作副本（2026-10-11 起）**：`C:\Users\guozechen\Desktop\ai-notes_demo-main` 已经是**真正的 git 克隆**（不是解压副本），`origin` 指向上面的仓库，跟踪 `main`，本地 `core.autocrlf=input`。改完**必须 `git push`**，否则线上一直跑旧代码（2026-10-11 就是这么掉线的，见决策记录）。
+
+**部署链路**：`main` 有新提交 → Netlify 自动构建并发布站点 `https://hilarious-kheer-89a440.netlify.app`。该站点运行时读 `DATABASE_URL`（指向 Neon `dev` 分支的池化连接串），生产分支未迁移、未连接。
 
 ## 快速开始
 
@@ -356,6 +360,20 @@ type Tab =
 - ⚠️ **发现：项目已开通 Neon Auth**，其 9 张表位于独立的 `neon_auth` schema（`tables_per_schema=… neon_auth:9 public:11`），与我们的 `public` 表互不干扰；本轮不使用，但需知晓它占用少量存储。
 - **注意**：`0000` 建的外键是 `cascade`，由 `0001` 改成 `restrict`——**必须按序全部执行，只跑 `0000` 会留下危险中间态**。
 
+### 2026-10-11：线上掉线复盘 —— 部署的代码版本与工作副本
+
+**现象**：线上站点读取永远返回空、写入全部 500（`RAW_STORAGE_WRITE_FAILED`），而本地一切正常。
+
+**根因**：Netlify 构建自 GitHub 仓库，而仓库里**一直是旧的文件存储版**（`lib/raw-storage.ts` / `lib/knowledge-storage.ts` / `lib/relation-storage.ts` 都在，`lib/db/`、`lib/services/`、`drizzle/` 全都不存在）。Phase D 的存储层切换只存在于本机解压副本里，**从未推送**。旧版把数据写进服务器本地 JSON 文件，而 Netlify 函数目录只读，所以写入必然失败、读取必然为空；数据库从头到尾没被碰过。
+
+**已修复**：把当前代码推到 `main`（`4bcf944`），Netlify 自动重建后线上回归 47/47 通过（10 个路由的真实读写 + 跨用户隔离）。
+
+**工作副本改造**：`C:\Users\guozechen\Desktop\ai-notes_demo-main` 现在是真正的 git 克隆（`origin` = 仓库，跟踪 `main`），本地 `core.autocrlf=input`。
+
+**教训（改完必须推送）**：不推送 = 线上永远跑旧代码，而且表面上一切正常（首页 200、读取返回空列表，不像故障）。以后判断"线上是不是最新代码"，用"往 dev 库插一条行、看线上接口能否读到"这种交叉验证，不要只看页面能不能打开。
+
+**顺带修复**：`.gitignore` 从只忽略 `.env` / `.env.local` / `.env.*.local` 改成忽略所有 `.env*`（保留 `.env.example`），避免 `.env.production` 这类文件被误提交到公开仓库。
+
 ## 改动边界
 
 - **Raw 用户可改、AI 不可改**：用户可以通过 `PATCH /api/raw` 修改，且必须留下修订记录；AI 永远不能改写 Raw 的正文。详见上文「决策记录」。
@@ -383,7 +401,7 @@ type Tab =
 ## 已知坑
 
 1. **目录名有多个写法**：clone 出来是 `ai-notes_demo`；本机可能叫 `ai-notes_demo-local`（含下划线）。常被写错成全连字符的 `ai-notes-demo-local` —— 那个路径不存在，`cd` 会直接失败。
-2. **行尾假象**：`core.autocrlf` 未设置，`git status` 常说"20 个文件被修改"，其中绝大多数只是行尾差异。判断真实改动用 `git diff --ignore-cr-at-eol`。
+2. **行尾假象**：本机克隆已设 `core.autocrlf=input`。若 `git status` 突然列出一大片"被修改"、但 `git diff` 没有任何内容差异（本仓库文件是 LF），那是索引 stat 缓存过期，跑一次 `git add -A` 即可清干净，不要用 `git checkout -- .` 去"修"。
 3. **`tsconfig.tsbuildinfo`** 是 TypeScript 增量构建缓存，已在 `.gitignore` 中，不要提交。
 4. **`pnpm build` 会打印一条 ESLint 报错**（`Cannot find module 'eslint-plugin-react-hooks'`）。构建仍然成功退出（exit 0），这是已知的 lint 插件缺失，不影响产物。
 5. **不要跑 `pnpm build` 的同时开着 `pnpm dev`** —— 两者共用 `.next/` 目录，会互相覆盖导致 dev server 报 `Cannot find module './xxx.js'`。
