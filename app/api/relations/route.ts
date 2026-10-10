@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getKnowledge } from "../../../lib/knowledge-storage";
-import {
-  createRelation,
-  listRelations,
-} from "../../../lib/relation-storage";
+import { createOrReviveLink, listLinks } from "../../../lib/services/links";
+import { getNote } from "../../../lib/services/notes";
 
 export const runtime = "nodejs";
 
@@ -21,7 +18,7 @@ function errorResponse(message: string, status: number, code: string) {
 
 export async function GET() {
   try {
-    return NextResponse.json({ relations: await listRelations() });
+    return NextResponse.json({ relations: await listLinks() });
   } catch {
     return errorResponse(
       "交叉引用暂时没有载入。已收录的知识页没有改变，请稍后重试。",
@@ -31,6 +28,12 @@ export async function GET() {
   }
 }
 
+/**
+ * 建立交叉引用。
+ *
+ * 语义与旧实现一致：同一对知识页（**无序**）只保留一条 `related` 关系，
+ * 因此 A→B 与 B→A 视为同一条；已被软删除的关系会被复活（`created: true`）。
+ */
 export async function POST(request: Request) {
   let parsed: unknown;
 
@@ -68,8 +71,8 @@ export async function POST(request: Request) {
 
   try {
     const [source, target] = await Promise.all([
-      getKnowledge(body.sourceId),
-      getKnowledge(body.targetId),
+      getNote(body.sourceId),
+      getNote(body.targetId),
     ]);
 
     if (!source || !target) {
@@ -80,10 +83,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await createRelation({
+    const result = await createOrReviveLink({
       sourceId: source.id,
       targetId: target.id,
-      type: "related",
       reason: body.reason.trim(),
     });
 

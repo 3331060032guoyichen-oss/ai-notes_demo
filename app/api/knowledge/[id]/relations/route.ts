@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getKnowledge } from "../../../../../lib/knowledge-storage";
-import { listRelationsForKnowledge } from "../../../../../lib/relation-storage";
+import { getNote } from "../../../../../lib/services/notes";
+import { listLinksForNote } from "../../../../../lib/services/links";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await context.params;
 
   try {
-    const knowledge = await getKnowledge(id);
+    const knowledge = await getNote(id);
 
     if (!knowledge) {
       return NextResponse.json(
@@ -21,7 +21,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ relations: await listRelationsForKnowledge(id) });
+    return NextResponse.json({ relations: await listLinksForNote(id) });
   } catch {
     return NextResponse.json(
       { error: { code: "RELATION_STORAGE_READ_FAILED", message: "交叉引用暂时没有载入。知识页没有受到影响，请稍后重试。" } },

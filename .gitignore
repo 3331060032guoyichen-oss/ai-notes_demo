@@ -17,6 +17,9 @@ dist/
 .env.*.local
 !.env.example
 
+# Neon local context (org / project / branch ids — not secrets, but not repo content)
+.neon
+
 # Local demo data
 data/raw.json
 data/knowledge.json

@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { listKnowledge } from "../../../lib/knowledge-storage";
-import { listRelations } from "../../../lib/relation-storage";
+import { listLinks } from "../../../lib/services/links";
+import { listNotes } from "../../../lib/services/notes";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     const [knowledges, relations] = await Promise.all([
-      listKnowledge(),
-      listRelations(),
+      listNotes(),
+      listLinks(),
     ]);
     const knowledgeIds = new Set(knowledges.map((knowledge) => knowledge.id));
 

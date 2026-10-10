@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getKnowledge } from "../../../../../lib/knowledge-storage";
-import { listRelationsForKnowledge } from "../../../../../lib/relation-storage";
+import { getNote } from "../../../../../lib/services/notes";
+import { listLinksForNote } from "../../../../../lib/services/links";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await context.params;
 
   try {
-    const knowledge = await getKnowledge(id);
+    const knowledge = await getNote(id);
 
     if (!knowledge) {
       return NextResponse.json(
@@ -21,11 +21,11 @@ export async function GET(
       );
     }
 
-    const relations = await listRelationsForKnowledge(id);
+    const relations = await listLinksForNote(id);
     const backlinks = (
       await Promise.all(
         relations.map((relation) =>
-          getKnowledge(
+          getNote(
             relation.sourceId === id ? relation.targetId : relation.sourceId,
           ),
         ),

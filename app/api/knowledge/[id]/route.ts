@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { getKnowledge, updateKnowledge } from "../../../../lib/knowledge-storage";
-import { getRaw } from "../../../../lib/raw-storage";
+import { getNote, updateNote } from "../../../../lib/services/notes";
+import type { UpdateNotePatch } from "../../../../lib/services/notes";
+import { getSource } from "../../../../lib/services/sources";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,7 @@ type KnowledgePatchBody = {
   keyPoints?: unknown;
   concepts?: unknown;
   keywords?: unknown;
+  version?: unknown;
 };
 
 function errorResponse(message: string, status: number, code: string) {
@@ -29,7 +31,7 @@ export async function GET(
   const { id } = await context.params;
 
   try {
-    const knowledge = await getKnowledge(id);
+    const knowledge = await getNote(id);
 
     if (!knowledge) {
       return NextResponse.json(
@@ -38,7 +40,7 @@ export async function GET(
       );
     }
 
-    const raw = await getRaw(knowledge.rawId);
+    const raw = await getSource(knowledge.rawId);
     return NextResponse.json({ knowledge, raw });
   } catch {
     return NextResponse.json(
@@ -48,6 +50,13 @@ export async function GET(
   }
 }
 
+/**
+ * 更新知识页。
+ *
+ * 版本检查：请求可带 `version`。带了就严格比对，不匹配返回 409 VERSION_CONFLICT 且不写入；
+ * 不带则按 last-write-wins 处理（现有界面尚未发送 version，这样不会造成回归）。
+ * 每次成功更新都会写入一条 `note_revisions`。
+ */
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -66,7 +75,7 @@ export async function PATCH(
   }
 
   const body = parsed as KnowledgePatchBody;
-  const patch: Parameters<typeof updateKnowledge>[1] = {};
+  const patch: UpdateNotePatch = {};
 
   if (body.title !== undefined) {
     if (typeof body.title !== "string" || !body.title.trim()) {
@@ -114,14 +123,31 @@ export async function PATCH(
     return errorResponse("没有收到需要修订的内容。", 400, "EMPTY_PATCH");
   }
 
-  try {
-    const knowledge = await updateKnowledge(id, patch);
+  let expectedVersion: number | undefined;
 
-    if (!knowledge) {
+  if (body.version !== undefined) {
+    if (typeof body.version !== "number" || !Number.isInteger(body.version) || body.version < 1) {
+      return errorResponse("版本号无法识别，请刷新后重试。", 400, "INVALID_VERSION");
+    }
+    expectedVersion = body.version;
+  }
+
+  try {
+    const result = await updateNote(id, patch, expectedVersion);
+
+    if (result.status === "not_found") {
       return errorResponse("这张知识页已不存在，请刷新目录。", 404, "KNOWLEDGE_NOT_FOUND");
     }
 
-    return NextResponse.json({ knowledge });
+    if (result.status === "conflict") {
+      return errorResponse(
+        "这张知识页在你编辑期间已经有了新的修订。请刷新后再改，避免覆盖别人的改动。",
+        409,
+        "VERSION_CONFLICT",
+      );
+    }
+
+    return NextResponse.json({ knowledge: result.knowledge });
   } catch {
     return errorResponse(
       "这次修订暂时没有保存。原有知识页没有改变，请稍后重试。",

@@ -1,5 +1,8 @@
 # Project Context
 
+> ⚠️ **这是一份阶段性快照，可能滞后于代码，冲突时以 `AGENTS.md` 为准。**
+> 最近一次结构性变更（2026-10-10）：**参考库（Wiki）整层已移除** —— `types/wiki.ts`、`lib/wiki-storage.ts`、`app/api/wiki/route.ts`、`data/wiki.json` 均已删除，界面上的"参考库"树与 Wiki 标签页也已移除。下文凡提到 Wiki 的内容均为**历史记录**。
+
 ## Current status
 
 - Phase: Phase 1

@@ -9,7 +9,7 @@
 持久化在 `data/*.json`，由 `lib/*-storage.ts` 通过 `node:fs/promises` 读写。
 所有读取在文件不存在（`ENOENT`）时返回空数组/空对象，不抛异常。
 
-### Raw —— 原始输入，不可变
+### Raw —— 原始输入（用户可改，AI 不可改）
 
 ```text
 Raw {
@@ -19,8 +19,37 @@ Raw {
 }
 ```
 
-存储于 `data/raw.json`（不进 Git）。只有创建（`POST /api/raw`）、列表（`GET`）、删除（`DELETE`）三种操作，**没有修改接口** —— 这是产品原则，不是遗漏。
+存储于 `data/raw.json`（不进 Git）。**当前代码**只有创建（`POST /api/raw`）、列表（`GET`）、删除（`DELETE`）三种操作，**还没有修改接口**。
 若该 Raw 已被某条 Knowledge 引用，删除会返回 `409 RAW_REFERENCED_BY_KNOWLEDGE`。
+
+> **2026-10-10 决策：Raw 允许用户修改。**
+> 原先「Raw 不可变」的表述作废。新的边界是：**用户可改，AI 不可改**。
+
+待实现的目标形态（**尚未实现**，不要按这个写代码）：
+
+```text
+Raw {
+  id: string
+  text: string
+  createdAt: string
+  updatedAt: string          // 新增
+}
+
+RawRevision {                // 新增：修改历史，保证「可追溯」
+  id: string
+  rawId: string
+  prevText: string
+  nextText: string
+  editedAt: string
+  editor: "user"             // 只可能是用户；AI 不在此列
+}
+```
+
+三条要同时成立的约束：
+
+1. 用户可以修改 Raw 正文（`PATCH /api/raw`）。
+2. **AI 永远不能改写 Raw 的正文**；AI 只能在 Draft 里引用原文。`lib/deepseek.ts` 的整理链路只产出 `OrganizeDraft`，不写 `data/raw.json`。
+3. 每次修改留下 `RawRevision`，否则「原始出处」的信任基础会消失。
 
 ### Knowledge —— 用户确认后的知识页
 
@@ -60,6 +89,8 @@ KnowledgeRelation {
 
 ### WikiPage / WikiLink —— 只读的 Wiki 结构
 
+> ⚠️ **本节已于 2026-10-10 作废。** 参考库（Wiki）整层已从代码中移除：`types/wiki.ts`、`lib/wiki-storage.ts`、`app/api/wiki/route.ts`、`data/wiki.json` 全部删除，界面上的"参考库"树与 Wiki 标签页也已移除。下面保留的只是**历史记录**，不要照着实现。数据库不需要 wiki 相关表。
+
 ```text
 WikiPage {
   id: string
@@ -84,8 +115,7 @@ WikiLink {
 }
 ```
 
-存储于 `data/wiki.json`（**进 Git**，是固定的演示数据：12 页面 / 14 条链接）。
-`lib/wiki-storage.ts` **只读不写** —— 这是有意的，Wiki 目前是只读演示层。
+（历史）存储于 `data/wiki.json`，进 Git，是固定的演示数据。该文件与对应的存储模块、API 路由均已于 2026-10-10 删除。
 
 ### OrganizeDraft —— 服务端返回的临时结构
 
@@ -147,12 +177,12 @@ AI 对知识关系的创建或修改先生成 Proposal，状态为 `proposed`、
 
 | 长期模型 | 当前实现 | 差距 |
 |---|---|---|
-| `Note` | `Raw`（原始输入）+ `Knowledge`（整理结果） | 一个 `Note` 被拆成两层的痕迹：Raw 不可变、Knowledge 可改。四类节点未实现 |
+| `Note` | `Raw`（原始输入，用户可改 / AI 不可改）+ `Knowledge`（整理结果，可 PATCH） | 一个 `Note` 被拆成两层的痕迹：Raw 与 Knowledge 都可改，但只有 Knowledge 是「整理结果」。四类节点未实现 |
 | `Question` | 无 | **未实现**。当前没有题目相关的字段（学科/章节/题型/难度/primaryConcept） |
-| `Concept` | `Knowledge.concepts`（字符串数组）+ `WikiPage`（kind = `concept`） | 只是标签和页面，**不是**可关联、可别名匹配的核心节点 |
+| `Concept` | `Knowledge.concepts`（字符串数组）| 只是标签，**不是**可关联、可别名匹配的核心节点（原 `WikiPage` 的 kind = `concept` 已随 Wiki 层移除）|
 | `Card` | 无 | **未实现** |
 | `Edge`（多类型） | `KnowledgeRelation`（只有 `related`，无向） | 关系类型单一、无方向 |
 | `Proposal` | Draft 内的 `relatedKnowledge` 建议 + 用户勾选 | 没有独立的可追溯实体 |
-| `Wiki`（承载四类节点） | `WikiPage` / `WikiLink`（只读演示数据） | 只读，未承载四类节点 |
+| `Wiki`（承载四类节点） | 无（原 `WikiPage` / `WikiLink` 已于 2026-10-10 移除）| 未实现，需要以新形态重新设计 |
 
 **另外注意**：「出链」（Outlink）是规划中的特有功能，当前代码里没有对应概念 —— 现有 Relation 是对称的，无法表达"从 A 指向 B"。做这项功能时需要先决定是给 Relation 加方向，还是新增有向链接类型。详见 `ROADMAP.md`。

@@ -14,7 +14,6 @@ import type { GraphEdge, GraphNode } from "../types/graph";
 import type { Knowledge } from "../types/knowledge";
 import type { OrganizeDraft } from "../types/organize";
 import type { Raw } from "../types/raw";
-import type { WikiData, WikiPage } from "../types/wiki";
 
 const MAX_RAW_LENGTH = 50_000;
 
@@ -23,15 +22,13 @@ type ViewKey = "new-note" | "graph";
 type GraphData = { nodes: GraphNode[]; edges: GraphEdge[] };
 type KnowledgeListPayload = { knowledges?: Knowledge[] };
 type GraphPayload = { nodes?: GraphNode[]; edges?: GraphEdge[] };
-type WikiPayload = Partial<WikiData>;
 
-type MentionItem = { kind: "raw" | "knowledge" | "wiki"; id: string; label: string };
+type MentionItem = { kind: "raw" | "knowledge"; id: string; label: string };
 
 type Tab =
   | { id: string; kind: "view"; viewKey: ViewKey; label: string }
   | { id: string; kind: "raw"; rawId: string; label: string }
   | { id: string; kind: "knowledge"; knowledgeId: string; label: string }
-  | { id: string; kind: "wiki"; wikiPageId: string; label: string }
   | { id: string; kind: "draft"; rawId: string; label: string };
 
 const viewMeta: Record<ViewKey, { label: string; shortLabel: string }> = {
@@ -42,15 +39,6 @@ const viewMeta: Record<ViewKey, { label: string; shortLabel: string }> = {
 const directNavViews: ViewKey[] = ["new-note", "graph"];
 
 const NEW_NOTE_TAB: Tab = { id: "view:new-note", kind: "view", viewKey: "new-note", label: "留下原话" };
-
-const wikiKindLabels: Record<WikiPage["kind"], string> = {
-  overview: "总览",
-  concept: "概念",
-  architecture: "架构",
-  workflow: "工作流",
-  reference: "索引",
-  practice: "实践",
-};
 
 function linesToArray(value: string) {
   return value.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -68,20 +56,6 @@ function formatDate(value: string) {
 function getPreview(text: string, length = 140) {
   const normalized = text.replace(/\s+/g, " ").trim();
   return normalized.length > length ? `${normalized.slice(0, length)}...` : normalized;
-}
-
-function getWikiDepth(page: WikiPage, pages: WikiPage[]) {
-  let depth = 0;
-  let parentId = page.parentId;
-  const visited = new Set<string>();
-
-  while (parentId && !visited.has(parentId)) {
-    visited.add(parentId);
-    depth += 1;
-    parentId = pages.find((candidate) => candidate.id === parentId)?.parentId ?? null;
-  }
-
-  return depth;
 }
 
 function AppLogo() {
@@ -105,10 +79,8 @@ export default function Home() {
   const [raws, setRaws] = useState<Raw[]>([]);
   const [knowledges, setKnowledges] = useState<Knowledge[]>([]);
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
-  const [wiki, setWiki] = useState<WikiData>({ pages: [], links: [] });
   const [selectedRawId, setSelectedRawId] = useState<string | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
-  const [, setSelectedWikiPageId] = useState<string | null>(null);
   const [draft, setDraft] = useState<OrganizeDraft | null>(null);
   const [draftRawId, setDraftRawId] = useState<string | null>(null);
   const [selectedRelationIds, setSelectedRelationIds] = useState<string[]>([]);
@@ -118,10 +90,9 @@ export default function Home() {
   const [isAsking, setIsAsking] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionTarget, setMentionTarget] = useState<MentionItem | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Record<"raw" | "knowledge" | "wiki", boolean>>({
+  const [expandedSections, setExpandedSections] = useState<Record<"raw" | "knowledge", boolean>>({
     raw: true,
     knowledge: true,
-    wiki: true,
   });
   const [, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -145,25 +116,20 @@ export default function Home() {
 
     async function loadPageData() {
       try {
-        const [rawResponse, knowledgeResponse, wikiResponse] = await Promise.all([
+        const [rawResponse, knowledgeResponse] = await Promise.all([
           fetch("/api/raw"),
           fetch("/api/knowledge"),
-          fetch("/api/wiki"),
         ]);
         const rawPayload = (await rawResponse.json()) as { raws?: Raw[] };
         const knowledgePayload = (await knowledgeResponse.json()) as KnowledgeListPayload;
-        const wikiPayload = (await wikiResponse.json()) as WikiPayload;
 
-        if (!rawResponse.ok || !knowledgeResponse.ok || !wikiResponse.ok) throw new Error("读取失败");
+        if (!rawResponse.ok || !knowledgeResponse.ok) throw new Error("读取失败");
         if (!active) return;
 
         const nextRaws = rawPayload.raws ?? [];
-        const nextWikiPages = wikiPayload.pages ?? [];
         setRaws(nextRaws);
         setKnowledges(knowledgePayload.knowledges ?? []);
-        setWiki({ pages: nextWikiPages, links: wikiPayload.links ?? [] });
         setSelectedRawId((current) => current ?? nextRaws[0]?.id ?? null);
-        setSelectedWikiPageId((current) => current ?? nextWikiPages[0]?.id ?? null);
       } catch {
         if (active) setError("内容暂时没有载入。你的本地记录没有受到影响，请稍后重试。");
       } finally {
@@ -213,10 +179,9 @@ export default function Home() {
     const items: MentionItem[] = [
       ...raws.map((r) => ({ kind: "raw" as const, id: r.id, label: getPreview(r.text, 24) })),
       ...knowledges.map((k) => ({ kind: "knowledge" as const, id: k.id, label: k.title })),
-      ...wiki.pages.map((p) => ({ kind: "wiki" as const, id: p.id, label: p.title })),
     ];
     return (q ? items.filter((item) => item.label.toLowerCase().includes(q)) : items).slice(0, 8);
-  }, [mentionQuery, raws, knowledges, wiki.pages]);
+  }, [mentionQuery, raws, knowledges]);
 
   const nodeTitleById = useMemo(() => {
     const map = new Map<string, string>();
@@ -263,11 +228,6 @@ export default function Home() {
   function openKnowledgeTab(knowledge: Knowledge) {
     setSelectedKnowledge(knowledge);
     openTab({ id: `knowledge:${knowledge.id}`, kind: "knowledge", knowledgeId: knowledge.id, label: getPreview(knowledge.title, 18) });
-  }
-
-  function openWikiTab(page: WikiPage) {
-    setSelectedWikiPageId(page.id);
-    openTab({ id: `wiki:${page.id}`, kind: "wiki", wikiPageId: page.id, label: getPreview(page.title, 18) });
   }
 
   function openDraftTab(rawId: string) {
@@ -600,26 +560,6 @@ export default function Home() {
     </>;
   }
 
-  function renderWikiTab(wikiPageId: string) {
-    const page = wiki.pages.find((item) => item.id === wikiPageId);
-    if (!page) return <EmptyState title="这页参考材料已不存在" body="请从左侧参考库重新选择。" />;
-
-    const linked = wiki.links
-      .filter((link) => link.sourceId === page.id || link.targetId === page.id)
-      .map((link) => link.sourceId === page.id ? link.targetId : link.sourceId)
-      .map((id) => wiki.pages.find((candidate) => candidate.id === id))
-      .filter((candidate): candidate is WikiPage => Boolean(candidate));
-
-    return <>
-      <header className="workspace-heading compact-heading"><div><p className="eyebrow">参考库 · {wikiKindLabels[page.kind]}</p><h1>{page.title}</h1><p>{page.tags.join(" / ")}</p></div></header>
-      <section className="content-section">
-        <p className="reading-summary">{page.summary}</p>
-        <div className="reading-content">{page.content}</div>
-        {linked.length > 0 ? <div className="backlink-section"><h4>相关参考</h4><div className="tag-row">{linked.map((linkedPage) => <button className="tag tag-button" type="button" data-sound="select" key={linkedPage.id} onClick={() => openWikiTab(linkedPage)}>{linkedPage.title}</button>)}</div></div> : null}
-      </section>
-    </>;
-  }
-
   function renderGraph() {
     return <><header className="workspace-heading compact-heading"><div><p className="eyebrow">知识网络</p><h1>看见理解如何相互回应。</h1><p>这里只呈现你已经确认的知识页与交叉引用，不添加装饰性内容。</p></div><button className="button-secondary" type="button" data-sound="press" onClick={() => setGraphRefresh((current) => current + 1)}>重新载入</button></header>{graph.nodes.length === 0 ? <EmptyState title="知识网络还没有内容" body="确认并收录第一张知识页后，它会从这里开始生长。" action={<button className="button-dark" type="button" data-sound="press" onClick={() => navigate("new-note")}>留下原话</button>} /> : <div className="graph-workspace"><section className="network-map" aria-label="知识页网络">{graph.nodes.map((node, index) => <button className={`network-node node-position-${index % 6}`} type="button" data-sound="select" key={node.id} onClick={() => void handleGraphNodeClick(node.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{node.title}</strong><small>打开知识页</small></button>)}</section><section className="edge-list"><div className="section-heading-inline"><h2>交叉引用</h2><span className="section-count">{graph.edges.length}</span></div>{graph.edges.length === 0 ? <p className="muted-note">目前还没有交叉引用。审阅整理稿时，你可以选择值得保留的联系。</p> : graph.edges.map((edge) => <div className="edge-row" key={edge.id}><div><strong>{nodeTitleById.get(edge.source) ?? edge.source}</strong><span>↔</span><strong>{nodeTitleById.get(edge.target) ?? edge.target}</strong></div><p>{edge.reason}</p></div>)}</section></div>}</>;
   }
@@ -628,7 +568,6 @@ export default function Home() {
     switch (activeTab.kind) {
       case "raw": return renderRawTab(activeTab.rawId);
       case "knowledge": return renderKnowledgeTab(activeTab.knowledgeId);
-      case "wiki": return renderWikiTab(activeTab.wikiPageId);
       case "draft": return renderDraftReview();
       case "view":
         switch (activeTab.viewKey) {
@@ -663,14 +602,6 @@ export default function Home() {
           </button>
           {expandedSections.knowledge ? <div className="tree-items">{knowledges.length === 0 ? <p className="tree-empty">还没有收录知识页</p> : knowledges.map((knowledge) => <button className={`tree-item${activeTabId === `knowledge:${knowledge.id}` ? " is-selected" : ""}`} type="button" data-sound="select" key={knowledge.id} onClick={() => openKnowledgeTab(knowledge)}>{getPreview(knowledge.title, 32)}</button>)}</div> : null}
         </div>
-        <div className="tree-section">
-          <button className="tree-section-header" type="button" data-sound="select" onClick={() => setExpandedSections((current) => ({ ...current, wiki: !current.wiki }))} aria-expanded={expandedSections.wiki}>
-            <span className={`tree-caret${expandedSections.wiki ? " is-open" : ""}`} aria-hidden="true">▾</span>
-            <span>参考库</span>
-            <span className="tree-count">{wiki.pages.length}</span>
-          </button>
-          {expandedSections.wiki ? <div className="tree-items">{wiki.pages.length === 0 ? <p className="tree-empty">参考库还是空的</p> : wiki.pages.map((page) => <button className={`tree-item${activeTabId === `wiki:${page.id}` ? " is-selected" : ""}`} type="button" data-sound="select" key={page.id} style={{ paddingLeft: `${10 + getWikiDepth(page, wiki.pages) * 14}px` }} onClick={() => openWikiTab(page)}>{getPreview(page.title, 28)}</button>)}</div> : null}
-        </div>
         <div className="tree-tools"><button className={`tree-tool-item${activeTabId === "view:graph" ? " is-active" : ""}`} type="button" data-sound="select" onClick={() => navigate("graph")}>{viewMeta.graph.label}</button></div>
       </nav>
       <div className="sidebar-bottom"><SoundToggle className="sound-toggle-sidebar" /><div className="data-status"><span className="status-dot" aria-hidden="true" /><span><strong>本地记录可用</strong><small>原始记录与知识页可追溯</small></span></div><span className="sidebar-version">AI Notes</span></div>
@@ -690,7 +621,7 @@ export default function Home() {
       <form className="ai-ask" onSubmit={(event) => { event.preventDefault(); void handleAskAssistant(aiQuestion); }}>
         <label htmlFor="ai-question">向编辑助理提问</label>
         <div className="ai-input-wrap">
-          {mentionCandidates.length > 0 ? <div className="mention-popup" role="listbox">{mentionCandidates.map((item) => <button type="button" key={`${item.kind}:${item.id}`} className="mention-row" data-sound="select" onClick={() => pickMention(item)}><span className="mention-kind">{item.kind === "raw" ? "原始记录" : item.kind === "knowledge" ? "知识页" : "参考库"}</span><span>{item.label}</span></button>)}</div> : null}
+          {mentionCandidates.length > 0 ? <div className="mention-popup" role="listbox">{mentionCandidates.map((item) => <button type="button" key={`${item.kind}:${item.id}`} className="mention-row" data-sound="select" onClick={() => pickMention(item)}><span className="mention-kind">{item.kind === "raw" ? "原始记录" : "知识页"}</span><span>{item.label}</span></button>)}</div> : null}
           <div className="ai-input-row"><input id="ai-question" value={aiQuestion} onChange={(event) => handleQuestionChange(event.target.value)} placeholder="写下问题，@ 可以引用已有材料" disabled={isAsking} /><button type="submit" data-sound="press" aria-label="提交问题" disabled={isAsking}>↗</button></div>
         </div>
       </form>

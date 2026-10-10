@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { askAssistant, DeepSeekError } from "../../../lib/deepseek";
-import { getKnowledge } from "../../../lib/knowledge-storage";
-import { getRaw } from "../../../lib/raw-storage";
-import { getWiki } from "../../../lib/wiki-storage";
+import { getNote } from "../../../lib/services/notes";
+import { getSource } from "../../../lib/services/sources";
 
 export const runtime = "nodejs";
 
-type ContextType = "knowledge" | "raw" | "wiki" | "draft" | "none";
+type ContextType = "knowledge" | "raw" | "draft" | "none";
 
 type AssistantRequestBody = {
   question?: unknown;
@@ -16,7 +15,7 @@ type AssistantRequestBody = {
   draftContext?: unknown;
 };
 
-const CONTEXT_TYPES: ContextType[] = ["knowledge", "raw", "wiki", "draft", "none"];
+const CONTEXT_TYPES: ContextType[] = ["knowledge", "raw", "draft", "none"];
 
 function errorResponse(message: string, status: number, code: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
       if (typeof body.contextId !== "string" || !body.contextId.trim()) {
         return errorResponse("没有找到引用的知识页，请重新选择。", 400, "CONTEXT_ID_REQUIRED");
       }
-      const knowledge = await getKnowledge(body.contextId);
+      const knowledge = await getNote(body.contextId);
       if (!knowledge) {
         return errorResponse("引用的知识页已不存在，请重新选择。", 404, "KNOWLEDGE_NOT_FOUND");
       }
@@ -65,21 +64,11 @@ export async function POST(request: Request) {
       if (typeof body.contextId !== "string" || !body.contextId.trim()) {
         return errorResponse("没有找到引用的原始记录，请重新选择。", 400, "CONTEXT_ID_REQUIRED");
       }
-      const raw = await getRaw(body.contextId);
+      const raw = await getSource(body.contextId);
       if (!raw) {
         return errorResponse("引用的原始记录已不存在，请重新选择。", 404, "RAW_NOT_FOUND");
       }
       context = raw.text;
-    } else if (body.contextType === "wiki") {
-      if (typeof body.contextId !== "string" || !body.contextId.trim()) {
-        return errorResponse("没有找到引用的参考材料，请重新选择。", 400, "CONTEXT_ID_REQUIRED");
-      }
-      const wiki = await getWiki();
-      const page = wiki.pages.find((item) => item.id === body.contextId);
-      if (!page) {
-        return errorResponse("引用的参考材料已不存在，请重新选择。", 404, "WIKI_PAGE_NOT_FOUND");
-      }
-      context = [page.title, page.summary, page.content].join("\n\n");
     } else if (body.contextType === "draft") {
       context = typeof body.draftContext === "string" ? body.draftContext : "";
     }

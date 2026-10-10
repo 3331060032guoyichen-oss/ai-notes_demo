@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { isOrganizeDraft } from "../../../lib/deepseek";
-import { createKnowledge, listKnowledge } from "../../../lib/knowledge-storage";
-import { getRaw } from "../../../lib/raw-storage";
+import { listNotes, promoteFromSource } from "../../../lib/services/notes";
+import { getSource } from "../../../lib/services/sources";
 
 export const runtime = "nodejs";
 
 type KnowledgeRequestBody = {
   rawId?: unknown;
   draft?: unknown;
+  origin?: unknown;
 };
 
 function errorResponse(message: string, status: number, code: string) {
@@ -17,7 +18,7 @@ function errorResponse(message: string, status: number, code: string) {
 
 export async function GET() {
   try {
-    return NextResponse.json({ knowledges: await listKnowledge() });
+    return NextResponse.json({ knowledges: await listNotes() });
   } catch {
     return errorResponse(
       "知识页暂时没有载入。已收录的内容没有改变，请稍后重试。",
@@ -27,6 +28,14 @@ export async function GET() {
   }
 }
 
+/**
+ * 从原始记录提升为知识页（决策 4：知识页只能这样创建）。
+ *
+ * 请求体沿用现有契约 `{ rawId, draft }`：draft 允许来自 AI 整理稿，也允许由界面
+ * 按同一形状手工组装（"手动提升"路径），因此不改变前端契约。
+ *
+ * `origin` 可选（'user' | 'ai'），默认 'user'；AI 整理流程应显式传 'ai' 以保留来源。
+ */
 export async function POST(request: Request) {
   let parsed: unknown;
 
@@ -50,14 +59,18 @@ export async function POST(request: Request) {
     return errorResponse("整理稿的内容不完整，暂时无法收录。请重新整理。", 400, "INVALID_DRAFT");
   }
 
+  if (body.origin !== undefined && body.origin !== "user" && body.origin !== "ai") {
+    return errorResponse("来源标记无法识别，请重新提交。", 400, "INVALID_ORIGIN");
+  }
+
   try {
-    const raw = await getRaw(body.rawId);
+    const raw = await getSource(body.rawId);
 
     if (!raw) {
       return errorResponse("整理稿对应的原始记录已不存在，暂时无法收录。", 404, "RAW_NOT_FOUND");
     }
 
-    const result = await createKnowledge({
+    const result = await promoteFromSource({
       rawId: raw.id,
       title: body.draft.title,
       summary: body.draft.summary,
@@ -65,6 +78,7 @@ export async function POST(request: Request) {
       keyPoints: body.draft.keyPoints,
       concepts: body.draft.concepts,
       keywords: body.draft.keywords,
+      origin: body.origin === "ai" ? "ai" : "user",
     });
 
     return NextResponse.json(result, { status: result.created ? 201 : 200 });

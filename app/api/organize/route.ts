@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { createOrganizeDraft, DeepSeekError } from "../../../lib/deepseek";
-import { listKnowledge } from "../../../lib/knowledge-storage";
-import { getRaw } from "../../../lib/raw-storage";
+import { listNotes } from "../../../lib/services/notes";
+import { getSource } from "../../../lib/services/sources";
 
 export const runtime = "nodejs";
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   let raw;
 
   try {
-    raw = await getRaw(body.rawId);
+    raw = await getSource(body.rawId);
   } catch {
     return errorResponse(
       "原始记录暂时没有载入。已保存的数据没有改变，请稍后重试。",
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existingKnowledge = (await listKnowledge())
+    const existingKnowledge = (await listNotes())
       .filter((knowledge) => knowledge.rawId !== raw.id)
       .slice(0, 20)
       .map((knowledge) => ({
