@@ -1,20 +1,21 @@
 # Development Workflow
 
-## 分工
+## 当前事实（先读这段）
+
+| 项 | 现在是什么 |
+|---|---|
+| 工作与部署分支 | `main`。Netlify 从 `main` 自动构建发布，**改动必须推到 `main` 才会生效** |
+| 部署平台 | Netlify（站点 `hilarious-kheer-89a440.netlify.app`），推送后约 1–3 分钟上线 |
+| 数据库 | Neon PostgreSQL + Drizzle ORM。连接串在 `.env.local` 的 `DATABASE_URL`（**dev 分支**） |
+| 权威说明 | 仓库根目录的 [`AGENTS.md`](../AGENTS.md)：仓库结构、技术栈、已实现 / 已删除功能、决策记录、已知坑。**冲突时以它为准** |
+
+红线：不要连接或迁移 **production** 分支；不要提交任何 `.env*` 文件；不要手改 `drizzle/` 下已有的迁移文件（新增迁移要先复核 SQL，再在 dev 分支执行）。
+
+## 分工与协作
 
 按三条工作线划分模块边界：**知识库和图谱**、**UI 界面**、**Skills 和插件**（见 `PROJECT_RULES.md`）。
-成员主要在自己的 feature 分支开发，完成稳定功能后合并到集成分支，最终由集成分支合并到 `main`。
 
-## Git 分支
-
-远端实际存在的分支（已用 `git ls-remote` 核实）：
-
-- `main`：稳定版本，默认分支
-- `main`：**当前实际的工作与部署分支**——Netlify 从 `main` 自动构建发布，所以改动必须推到 `main` 才会生效
-- `develop-guozechen`：历史集成分支，已不再使用（保留但不要往这里提交）
-- `feature/*`：按任务创建，例如 `feature/raw-storage`（Step 1 历史分支）
-
-> 远端**没有** `develop` 分支。若本地还残留 `origin/develop` 引用，那是过期的远程跟踪引用，用 `git fetch --prune` 清理即可。
+协作方式：每人从 `main` 开 `feature/xxx` 或 `fix/xxx` 分支，完成并自验后开 Pull Request，由负责人合并到 `main`。**不要多人同时直接往 `main` 推**。合并进 `main` 就等于发布到线上。
 
 ## 环境与命令
 
@@ -22,36 +23,51 @@
 
 ```bash
 pnpm install
-cp .env.example .env.local   # 填入 DEEPSEEK_API_KEY
+cp .env.example .env.local   # 然后按下表填变量
 pnpm dev                     # http://localhost:3000
 ```
 
-其他可用命令：`pnpm build`、`pnpm start`、`pnpm lint`。
-可用脚本（`package.json`）：`pnpm test`（60 项回归断言，需先起 `pnpm dev`）、`pnpm verify:db`（校验数据库结构）、`pnpm test:cleanup`（清理验证残留行）。回归测试会自己造数据并清理，结束时打印「清理后库内为 0」。
+| 变量 | 必填 | 说明 |
+|---|---|---|
+| `DATABASE_URL` | 是 | Neon **dev 分支**的池化连接串（host 含 `-pooler`），由负责人私下提供，不要写进仓库、文档或提交信息 |
+| `DEEPSEEK_API_KEY` | 否 | 仅调试 AI 端点需要；不填时 `/api/organize`、`/api/assistant` 返回 503，其余功能正常 |
 
-验证顺序建议：`pnpm exec tsc --noEmit` → `pnpm build` → 起 `pnpm dev` → `pnpm test` → 浏览器手动走查改动路径。
+## 验证流程
 
-注意：不要一边开着 `pnpm dev` 一边跑 `pnpm build` —— 两者共用 `.next/` 目录，会互相覆盖。
+改完按顺序跑；缺哪一项，就在汇报里写成「未验证」：
 
-数据库：Neon PostgreSQL（Drizzle ORM），连接串在 `.env.local` 的 `DATABASE_URL`（**dev 分支**）。生产分支不要连接、不要迁移。迁移文件在 `drizzle/`，新增迁移必须先复核 SQL 再在 dev 执行。
+```bash
+pnpm exec tsc --noEmit   # 类型检查
+pnpm build               # 生产构建；不要与 pnpm dev 同时跑（共用 .next/ 会互相覆盖）
+pnpm dev                 # 另开终端
+pnpm test                # 60 项回归断言，需服务在跑；结束时打印「清理后库内为 0」
+pnpm verify:db           # 校验数据库结构（11 张表 / 11 个 CHECK / 8 个外键）
+```
 
-## Step gate
+要验证线上而不是本地：把 `REGRESSION_BASE_URL` 指向线上站点再跑 `pnpm test`（PowerShell：`$env:REGRESSION_BASE_URL="https://hilarious-kheer-89a440.netlify.app"`）。
 
-每次只执行一个 Step。当前 Step 必须完成实现、适用的真实命令或页面验证，并明确报告为 `PASS` 后，才能进入下一 Step。未执行的检查必须报告为 `NOT VERIFIED`，不得用推断替代实际证据。
+改了界面就必须在浏览器里真的点一遍。报告时明确区分「已验证」与「未验证」，不得用推断替代实测。
 
-Step 1 的验收范围是 Raw 创建、读取、输入校验、连续写入、存储异常恢复和重启持久化；该 Step 已 PASS。Step 2（DeepSeek 与 Draft）已完成真实调用、结构化校验、错误路径和 Raw 保留验证；该 Step 已 PASS。Step 3（Draft 确认与 Knowledge 持久化）已完成页面操作、重复确认、重启恢复和 API 验证；该 Step 已 PASS。Step 4（Knowledge Relation）已完成 AI 建议、用户选择、ID 校验、对称去重和页面/API 验证；该 Step 已 PASS。Step 5（Backlink）已完成动态查询、空结果、未知 Knowledge、Relation 删除后的同步和重启恢复验证；该 Step 已 PASS。Step 6（Graph）已完成动态节点/边、节点详情跳转和主流程隔离验证；该 Step 已 PASS。Phase 1 最终全链路也已通过真实 Raw、AI、确认、Relation、Backlink、Graph 和重启测试。
+判断线上是否跑的是最新代码：往 dev 库插一条数据，看线上接口能否读到。只看页面能不能打开判断不出来——历史上就因为改动没推送，线上长期跑着旧代码（见 `AGENTS.md` 决策记录）。
 
-Step 7（工作台改版）已完成并通过验证：左侧导航改为 Raw / Knowledge / Wiki 三组文件树，点击条目在中间区域以标签页打开；新增 `POST /api/assistant` 支持 `@` 提及式问答；新增 `PATCH /api/knowledge/:id` 与 Knowledge 标题右键改名、摘要/正文/概念内联编辑。同期移除了「今日学习 / 复习 / 知识检查」三个视图、新建笔记页的「最近原始笔记」列表，以及 AI 面板原有的 5 个固定动作按钮。
+## 历史记录
+
+以下是 2026-10 早期的分步开发记录，**已被后续重构取代**：存储层从本地 JSON 文件切到 PostgreSQL（Drizzle），「参考库 / Wiki」整层已按产品决策移除。仅作背景保留，不要据此实现新功能。
+
+- Step 1–6：Raw 创建/读取/校验/持久化 → DeepSeek Draft → Draft 确认与 Knowledge 持久化 → Relation → Backlink → Graph，均已 PASS。
+- Phase 1 全链路：真实 Raw、AI、确认、Relation、Backlink、Graph 与重启恢复测试已通过。
+- Step 7（工作台改版）：左侧导航改为文件树 + 中间标签页；新增 `POST /api/assistant`（`@` 提及式问答）、`PATCH /api/knowledge/:id` 与内联编辑；同期移除「今日学习 / 复习 / 知识检查」三个视图、新建笔记页的「最近原始笔记」列表和 AI 面板的 5 个固定动作按钮。
+- 后续：存储层切换到 Neon + Drizzle，原始记录新增 `PATCH /api/raw/:id`（用户可改、留修订记录）。详见 `docs/reports/`。
 
 ## Commit 规范
 
-使用清晰的 Conventional Commit 风格，例如 `feat: ...`、`fix: ...`、`refactor: ...`、`chore: ...`。避免使用 `update`、`aaa`、`final` 等无信息提交信息。
+使用清晰的 Conventional Commit 风格，例如 `feat: ...`、`fix: ...`、`refactor: ...`、`chore: ...`、`docs: ...`。避免 `update`、`aaa`、`final` 这类无信息提交信息；一次提交只做一件事。
 
 ## AI Coding 规范
 
 修改前阅读相关 docs 与现有代码，明确影响范围并复用已有组件；修改后运行项目、检查相关页面并报告修改文件和测试结果。Prompt 应包含任务目标、上下文、相关文件、禁止修改内容、输入输出和验收标准。
 
-使用 AI 编码工具时，请先让它读仓库根目录的 [`AGENTS.md`](../AGENTS.md) —— 那是给 AI 看的总入口，包含真实的仓库结构、技术栈、已实现/已删除功能清单和已知坑。
+使用 AI 编码工具时，先让它读仓库根目录的 [`AGENTS.md`](../AGENTS.md)，再读 [`HANDOVER.md`](HANDOVER.md)（环境、红线、任务清单与可直接粘贴的提示词模板）。
 
 ## 模块边界与合并规则
 
