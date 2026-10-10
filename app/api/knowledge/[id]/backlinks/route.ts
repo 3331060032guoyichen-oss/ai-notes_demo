@@ -16,7 +16,7 @@ export async function GET(
 
     if (!knowledge) {
       return NextResponse.json(
-        { error: { code: "KNOWLEDGE_NOT_FOUND", message: "找不到对应的知识内容。" } },
+        { error: { code: "KNOWLEDGE_NOT_FOUND", message: "这张知识页已不存在，请刷新目录。" } },
         { status: 404 },
       );
     }
@@ -35,7 +35,7 @@ export async function GET(
     return NextResponse.json({ backlinks });
   } catch {
     return NextResponse.json(
-      { error: { code: "BACKLINK_READ_FAILED", message: "暂时无法读取 Backlink，请稍后重试。" } },
+      { error: { code: "BACKLINK_READ_FAILED", message: "相关的交叉引用暂时没有载入。知识页没有受到影响，请稍后重试。" } },
       { status: 500 },
     );
   }

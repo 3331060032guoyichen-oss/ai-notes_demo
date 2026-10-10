@@ -35,7 +35,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      { error: { code: "GRAPH_READ_FAILED", message: "暂时无法读取知识网络，请稍后重试。" } },
+      { error: { code: "GRAPH_READ_FAILED", message: "知识网络暂时没有载入。已收录的内容仍然安全，请稍后重试。" } },
       { status: 500 },
     );
   }
