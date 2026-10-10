@@ -414,6 +414,9 @@ type Tab =
 | `docs/PROJECT_CONTEXT.md` | ⚠️ 阶段性状态记录，可能滞后于代码 |
 | `docs/THIRD_PARTY.md` | ✅ 有效（第三方依赖登记表） |
 | `docs/CODEX_AI_LEARNING_UI_BRIEF.md` | ⚠️ **历史 brief，已过时**。文中要求做 Study / Lint / 力导向图谱，这些已被推翻。仅作背景参考，**不要照着做** |
+| `docs/HANDOVER.md` | ✅ 有效（交接给协作者的操作说明：环境、红线、验证流程、任务清单、可直接粘贴给 AI 的提示词） |
+| `docs/reports/01`–`12` | ⚠️ 阶段性报告（竞品研究 / 审计 / 选型 / 架构 / 迁移复核 / 存储层切换），记录当时的判断与依据，**描述的是历史状态，不要当成当前代码说明** |
+| `docs/reports/13-界面走查问题清单与下一步.md` | ✅ 有效（2026-10-11 界面走查的问题清单与后续计划，配 `docs/screenshots/`） |
 | `README.md` | ✅ 面向人的简述 |
 
 ## 已知坑

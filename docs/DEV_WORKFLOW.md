@@ -10,7 +10,8 @@
 远端实际存在的分支（已用 `git ls-remote` 核实）：
 
 - `main`：稳定版本，默认分支
-- `develop-guozechen`：日常集成分支，**所有新工作提交到这里**
+- `main`：**当前实际的工作与部署分支**——Netlify 从 `main` 自动构建发布，所以改动必须推到 `main` 才会生效
+- `develop-guozechen`：历史集成分支，已不再使用（保留但不要往这里提交）
 - `feature/*`：按任务创建，例如 `feature/raw-storage`（Step 1 历史分支）
 
 > 远端**没有** `develop` 分支。若本地还残留 `origin/develop` 引用，那是过期的远程跟踪引用，用 `git fetch --prune` 清理即可。
@@ -26,9 +27,13 @@ pnpm dev                     # http://localhost:3000
 ```
 
 其他可用命令：`pnpm build`、`pnpm start`、`pnpm lint`。
-**没有测试脚本**，不要假设 `pnpm test` 存在；验证方式是构建 + 手动走查 + 接口实测。
+可用脚本（`package.json`）：`pnpm test`（60 项回归断言，需先起 `pnpm dev`）、`pnpm verify:db`（校验数据库结构）、`pnpm test:cleanup`（清理验证残留行）。回归测试会自己造数据并清理，结束时打印「清理后库内为 0」。
+
+验证顺序建议：`pnpm exec tsc --noEmit` → `pnpm build` → 起 `pnpm dev` → `pnpm test` → 浏览器手动走查改动路径。
 
 注意：不要一边开着 `pnpm dev` 一边跑 `pnpm build` —— 两者共用 `.next/` 目录，会互相覆盖。
+
+数据库：Neon PostgreSQL（Drizzle ORM），连接串在 `.env.local` 的 `DATABASE_URL`（**dev 分支**）。生产分支不要连接、不要迁移。迁移文件在 `drizzle/`，新增迁移必须先复核 SQL 再在 dev 执行。
 
 ## Step gate
 
