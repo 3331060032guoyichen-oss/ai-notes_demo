@@ -11,10 +11,8 @@ out/
 build/
 dist/
 
-# Local environment
-.env
-.env.local
-.env.*.local
+# Local environment (all real env files, whatever the suffix)
+.env*
 !.env.example
 
 # Neon local context (org / project / branch ids — not secrets, but not repo content)
